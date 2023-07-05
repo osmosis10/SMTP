@@ -1,5 +1,5 @@
 # This is an example from "Computer Networking: A Top Down Approach" textbook chapter 2
-# You can try this with nc localhost 12000
+# You can try this with nc localhost 12000 Test
 
 import socket
 import sys
