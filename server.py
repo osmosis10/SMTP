@@ -44,11 +44,20 @@ def initial_connection_protocol(connectionSocket):
         f.close()
         public_rsa_client = PKCS1_OAEP.new(client_pub)
 
-        #Creates and sends the sym key
+        # Creates and sends the sym key
         #sym_key = sym_keygen()
         #encrypted = public_rsa_client.encrypt(sym_key.encode("ascii"))
+        #connectionSocket.send(encrypted)
+
+        # Generate Cipher
+        #sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
         print(f"Connection Accepted and Symmetric Key Generated for Client:{username}")
+
+        # Receive OK (Not sure if this is what to do here, should ask in class)
+        encrypted = connectionSocket.recv(2048)
+        #message = sym_cipher.decrypt(encrypted).decode("ascii")
+        #print(f"{message} Recived")
 
         #return True, sym_key
     else:
