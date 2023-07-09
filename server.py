@@ -5,8 +5,32 @@ import socket
 import sys, glob, datetime
 import os
 from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
 
 
+def initial_connection_protocol(connectionSocket):
+    # This is the server client communication protocol for when the initial connection
+
+    # Creates the public key and cipher from the server public key
+    f = open("server_public.pem", "rb")
+    server_pub = RSA.importKey(f.read())
+    f.close()
+    public_rsa_server = PKCS1_OAEP.new(server_pub)
+
+    # Creates the private key and cipher from the server private key
+    f = open("server_private.pem", "rb")
+    server_pri = RSA.importKey(f.read())
+    f.close()
+    private_rsa_server = PKCS1_OAEP.new(server_pri)
+
+
+    # Receives the username
+    encrypted = connectionSocket.recv(2048)
+    username = private_rsa_server.decrypt(encrypted).decode("ascii")
+
+    # Receives the Password
+    encrypted = connectionSocket.recv(2048)
+    password = private_rsa_server.decrypt(encrypted).decode("ascii")
 
 def server():
     #Server port
@@ -41,18 +65,9 @@ def server():
             # If it is a client process
             if  pid== 0:
                 
-                serverSocket.close() 
-                
-                #Server send a message to the client
-                connectionSocket.send("Enter a message: ".encode('ascii'))
-                
-                #Server receives client message, decode it and convert it to upper case
-                message = connectionSocket.recv(2048)
-                modifiedMessage = message.decode('ascii').upper()
-                
-                #Server sends the client the modified message
-                print(modifiedMessage)
-                connectionSocket.send(modifiedMessage.encode('ascii'))
+                serverSocket.close()
+
+                initial_connection_protocol(connectionSocket)
                 
                 connectionSocket.close()
                 
