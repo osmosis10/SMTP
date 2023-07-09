@@ -66,7 +66,25 @@ def client():
         #Client connect with the server
         clientSocket.connect((serverName,serverPort))
         
-        initial_connection_protocol(clientSocket)
+        accepted_connection, sym_key = initial_connection_protocol(clientSocket)
+        if accepted_connection:
+            # noinspection PyTypeChecker
+            sym_cipher = AES.new(sym_key, AES.MODE_ECB)
+
+            command = "0"
+            # Loops until the command is 4 (exit)
+            while command != "4":
+                # Gets instructions from the server
+                encrypted = clientSocket.recv(2048)
+                instructions = sym_cipher.decrypt(encrypted).decode("ascii")
+                print(instructions)
+
+                if command == "1":
+                    print("THIS IS WHERE EMAIL CREATION CLIENT GOES")
+                elif command == "2":
+                    print("THIS IS WHERE INBOX DISPLAY CLIENT GOES")
+                elif command == "3":
+                    print("THIS IS WHERE EMAIL DISPLAY CLIENT GOES")
         
         # Client terminate connection with the server
         clientSocket.close()

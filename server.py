@@ -45,31 +45,26 @@ def initial_connection_protocol(connectionSocket):
         public_rsa_client = PKCS1_OAEP.new(client_pub)
 
         # Creates and sends the sym key
-        #sym_key = sym_keygen()
-        #encrypted = public_rsa_client.encrypt(sym_key.encode("ascii"))
-        #connectionSocket.send(encrypted)
+        # sym_key = sym_keygen()
+        # encrypted = public_rsa_client.encrypt(sym_key.encode("ascii"))
+        # connectionSocket.send(encrypted)
 
         # Generate Cipher
-        #sym_cipher = AES.new(sym_key, AES.MODE_ECB)
+        # sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
         print(f"Connection Accepted and Symmetric Key Generated for Client:{username}")
 
         # Receive OK (Not sure if this is what to do here, should ask in class)
         encrypted = connectionSocket.recv(2048)
-        #message = sym_cipher.decrypt(encrypted).decode("ascii")
-        #print(f"{message} Recived")
+        # message = sym_cipher.decrypt(encrypted).decode("ascii")
+        # print(f"{message} Recived")
 
-        #return True, sym_key
+        # return True, sym_key
     else:
         # Sends denied connection in the clear
         connectionSocket.send("Invalid Username or Password".encode('ascii'))
         print(f"The received Client Information: {username} is invalid (Connection Terminated)")
         return False, None
-
-
-
-
-
 
 
 def server():
@@ -106,7 +101,31 @@ def server():
             if pid == 0:
                 serverSocket.close()
 
-                initial_connection_protocol(connectionSocket)
+                accepted_connection, sym_key = initial_connection_protocol(connectionSocket)
+                if accepted_connection:
+                    # noinspection PyTypeChecker
+                    sym_cipher = AES.new(sym_key, AES.MODE_ECB)
+
+                    command = "0"
+                    # Loops until the command is 4 (exit)
+                    while command != "4":
+                        # Creates and sends the instructions
+                        instructions = \
+                            "Select the Operation:\n    " \
+                            "1) Create and Send an Email\n    " \
+                            "2) Display the Inbox List\n    " \
+                            "3) Display the Email Contents\n    " \
+                            "4) Terminate the Connection".encode('ascii')
+                        encrypted = sym_cipher.encrypt(instructions)
+                        connectionSocket.send(encrypted)
+
+                        if command == "1":
+                            print("THIS IS WHERE EMAIL CREATION SERVER GOES")
+                        elif command == "2":
+                            print("THIS IS WHERE INBOX DISPLAY SERVER GOES")
+                        elif command == "3":
+                            print("THIS IS WHERE EMAIL DISPLAY SERVER GOES")
+
 
                 connectionSocket.close()
 
