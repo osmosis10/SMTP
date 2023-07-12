@@ -41,7 +41,7 @@ def export_public_key(public_key, username='john'):
 
 
 # Read in the public key as binary and save in a variable
-def import_public_key(public_key, username='john'):
+def import_public_key(username='john'):
     with open(f'{username}_public.pem', 'rb') as file:
         client_public_key = file.read()
     return client_public_key
@@ -58,9 +58,7 @@ def initial_connection_protocol(clientSocket):
     # This is the server client communication protocol for when the initial connection
 
     # Creates the key and cipher from the server public key
-    f = open("server_public.pem", "rb")
-    server_pub = RSA.importKey(f.read())
-    f.close()
+    server_pub = RSA.importKey(import_public_key("server"))
     cipher_rsa_server = PKCS1_OAEP.new(server_pub)
 
     # Enters and sends the username
@@ -80,9 +78,7 @@ def initial_connection_protocol(clientSocket):
         return False, None
     else:
         # Creates the public key for the client and cipher from the client public key
-        f = open(f"{username}_private.pem", "rb")
-        client_pri = RSA.importKey(f.read())
-        f.close()
+        client_pri = RSA.importKey(import_public_key(username))
         private_rsa_client = PKCS1_OAEP.new(client_pri)
 
         # Receives the symmetric key from the server
