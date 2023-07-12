@@ -61,10 +61,16 @@ def export_public_key(public_key):
 
 
 # User this to save the server public key binary to a variable
-def import_public_key():
-    with open('server_public.pem', 'rb') as file:
+def import_public_key(username):
+    with open(f'{username}_public.pem', 'rb') as file:
         server_public_key = file.read()
     return server_public_key
+
+# Read in the private key as binary and save in a variable
+def import_private_key():
+    with open(f'server_private.pem', 'rb') as file:
+        client_public_key = file.read()
+    return client_public_key
 
 
 # Use this to encrypt public_key which was generated via RSA
@@ -96,9 +102,7 @@ def initial_connection_protocol(connectionSocket):
     # This is the server client communication protocol for when the initial connection
 
     # Creates the private key and cipher from the server private key
-    f = open("server_private.pem", "rb")
-    server_pri = RSA.importKey(f.read())
-    f.close()
+    server_pri = RSA.importKey(import_private_key())
     private_rsa_server = PKCS1_OAEP.new(server_pri)
 
     # Receives the username
@@ -122,25 +126,23 @@ def initial_connection_protocol(connectionSocket):
 
     if match:
         # Creates the public key for the client and cipher from the client public key
-        f = open(f"{username}_public.pem", "rb")
-        client_pub = RSA.importKey(f.read())
-        f.close()
+        client_pub = RSA.importKey(import_public_key(username))
         public_rsa_client = PKCS1_OAEP.new(client_pub)
 
         # Creates and sends the sym key
-        # sym_key = sym_keygen()
-        # encrypted = public_rsa_client.encrypt(sym_key.encode("ascii"))
-        # connectionSocket.send(encrypted)
+        sym_key = generate_sym_key(256)
+        encrypted = public_rsa_client.encrypt(sym_key)
+        connectionSocket.send(encrypted)
 
         # Generate Cipher
-        # sym_cipher = AES.new(sym_key, AES.MODE_ECB)
+        sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
         print(f"Connection Accepted and Symmetric Key Generated for Client:{username}")
 
         # Receive OK (Not sure if this is what to do here, should ask in class)
         encrypted = connectionSocket.recv(2048)
-        # message = sym_cipher.decrypt(encrypted).decode("ascii")
-        # print(f"{message} Recived")
+        message = sym_cipher.decrypt(encrypted).decode("ascii")
+        print(f"{message} Recived")
 
         # return True, sym_key
     else:

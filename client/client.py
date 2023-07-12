@@ -46,6 +46,12 @@ def import_public_key(username='john'):
         client_public_key = file.read()
     return client_public_key
 
+# Read in the private key as binary and save in a variable
+def import_private_key(username='john'):
+    with open(f'{username}_private.pem', 'rb') as file:
+        client_public_key = file.read()
+    return client_public_key
+
 
 # Gives you a string representation of the encrypted sym key
 def print_encrypted_sym(encrypted_sym_key):
@@ -82,8 +88,7 @@ def initial_connection_protocol(clientSocket):
         private_rsa_client = PKCS1_OAEP.new(client_pri)
 
         # Receives the symmetric key from the server
-        sym_key = private_rsa_client.decrypt(response).decode("ascii")
-        # noinspection PyTypeChecker
+        sym_key = private_rsa_client.decrypt(response)
         sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
         # Sends the OK to the server
