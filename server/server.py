@@ -4,9 +4,10 @@ import json
 import socket
 import sys, glob, datetime
 import os
-from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
-from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad, unpad
 
 
 # Use this to generate RSA public and private keys
