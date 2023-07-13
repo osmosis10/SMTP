@@ -158,7 +158,7 @@ def initial_connection_protocol(connectionSocket):
 
 def server():
     # Server port
-    serverPort = 13000
+    serverPort = 12000
 
     # Create server socket that uses IPv4 and TCP protocols
     try:
@@ -213,7 +213,12 @@ def server():
                         command = unpad(sym_cipher.decrypt(encrypted), 16).decode("ascii")
 
                         if command == "1":
-                            print("THIS IS WHERE EMAIL CREATION SERVER GOES")
+                            message = "Send this email\n"
+                            connectionSocket.send(encrypt_message(message, sym_key))
+                            
+                            email = connectionSocket.recv(2048)
+                            print(decrypt_message(email, sym_key))
+                            
                         elif command == "2":
                             print("THIS IS WHERE INBOX DISPLAY SERVER GOES")
                         elif command == "3":
