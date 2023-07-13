@@ -167,6 +167,8 @@ def client():
                     if (load_file.upper() == "Y"):
                         content = input("Enter filename: ")
                         length = file_length(content)
+                        if (length > 1000000):
+                            print("File length cannod exceed 1,000,000")
                     else:
                         content = input("Enter message contents: ")
                         length = len(content)
