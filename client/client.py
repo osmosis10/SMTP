@@ -59,6 +59,28 @@ def print_encrypted_sym(encrypted_sym_key):
     print('SYMMETRIC KEY (HEX): ', encrypted_sym_key_hex)
     return
 
+def encrypt_message(message, sym_key):
+    binary_message = message.encode('utf-8')
+    padded_message = pad(binary_message, 16)
+    cipher_message = AES.new(sym_key, AES.MODE_ECB)
+    encrypted_message = cipher_message.encrypt(padded_message)
+    return encrypted_message
+
+# Use this to decrypt any messages that are need to be sent to the user
+# message is decrypted via AES using the sym_key
+def decrypt_message(encrypted_message, sym_key):
+    cipher_message = AES.new(sym_key, AES.MODE_ECB)
+    decrypted_message = cipher_message.decrypt(encrypted_message)
+    unpadded_message = unpad(decrypted_message, 16)
+    message = unpadded_message.decode('utf-8')
+    return message
+
+def file_length(file):
+    with open(file, "r") as f:
+        f = file.read()
+        length = len(f)
+        return length
+    
 def initial_connection_protocol(clientSocket):
     # This is the server client communication protocol for when the initial connection
 
@@ -81,7 +103,7 @@ def initial_connection_protocol(clientSocket):
     try:
         reply = response.decode('ascii')
         print(f"{reply}\nTerminating")
-        return False, None
+        return False, None, username
     except Exception:
 
         # Creates the private key for the client and cipher from the client public key
@@ -96,7 +118,7 @@ def initial_connection_protocol(clientSocket):
         encrypted = sym_cipher.encrypt(pad("OK".encode("ascii"), 16))
         clientSocket.send(encrypted)
 
-        return True, sym_key
+        return True, sym_key, username
 
 
 
@@ -118,7 +140,7 @@ def client():
         #Client connect with the server
         clientSocket.connect((serverName,serverPort))
         
-        accepted_connection, sym_key = initial_connection_protocol(clientSocket)
+        accepted_connection, sym_key, username = initial_connection_protocol(clientSocket)
         if accepted_connection:
             # noinspection PyTypeChecker
             sym_cipher = AES.new(sym_key, AES.MODE_ECB)
@@ -137,7 +159,27 @@ def client():
                 clientSocket.send(encrypted)
 
                 if command == "1":
-                    print("THIS IS WHERE EMAIL CREATION CLIENT GOES\n")
+                    message = clientSocket.recv(2048)
+                    print(decrypt_message(message,sym_key))
+                    dest = input("Enter destinations (separated by ;): ")
+                    title = input("Enter title: ")
+                    load_file = input("Would you like to load contents from a file?(Y/N) " )
+                    if (load_file.upper() == "Y"):
+                        content = input("Enter filename: ")
+                        length = file_length(content)
+                        if (length > 1000000):
+                            print("File length cannod exceed 1,000,000")
+                    else:
+                        content = input("Enter message contents: ")
+                        length = len(content)
+                    email = f'\033[1mFrom:\033[0m {username}\n' \
+                                f'\033[1mTo:\033[0m {dest}\n' \
+                                f'\033[1mTime and Date:\033[0m\n' \
+                                f'\033[1m\033[1mTitle:\033[0m {title}\n'\
+                                f'\033[1mContent Length:\033[0m {length}\n' \
+                                f'\033[1mContent:\033[0m {content}\n'
+                    print("The message is sent to the server.")
+                    clientSocket.send(encrypt_message(email, sym_key))
                 elif command == "2":
                     print("THIS IS WHERE INBOX DISPLAY CLIENT GOES\n")
                 elif command == "3":
@@ -153,3 +195,6 @@ def client():
 
 #----------
 client()
+
+
+

@@ -4,6 +4,7 @@ import json
 import socket
 import sys, glob, datetime
 import os
+from datetime import datetime
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes
@@ -90,6 +91,14 @@ def encrypt_message(message, sym_key):
     encrypted_message = cipher_message.encrypt(padded_message)
     return encrypted_message
 
+# Use this to decrypt any messages that are need to be sent to the user
+# message is decrypted via AES using the sym_key
+def decrypt_message(encrypted_message, sym_key):
+    cipher_message = AES.new(sym_key, AES.MODE_ECB)
+    decrypted_message = cipher_message.decrypt(encrypted_message)
+    unpadded_message = unpad(decrypted_message, 16)
+    message = unpadded_message.decode('utf-8')
+    return message
 
 # Gives you a string representation of the encrypted sym key
 def print_encrypted_sym(encrypted_sym_key):
@@ -97,6 +106,13 @@ def print_encrypted_sym(encrypted_sym_key):
     print('SYMMETRIC KEY (HEX): ', encrypted_sym_key_hex)
     return
 
+def splice_word(string, target):
+    start = string.find(target)
+    middle = string.find(":", start)
+    middle2 = string.find("m", middle)
+    end = string.find("\n", middle2)
+    
+    return string[middle2+1:end].strip()
 
 def initial_connection_protocol(connectionSocket):
     # This is the server client communication protocol for when the initial connection
@@ -205,7 +221,29 @@ def server():
                         command = unpad(sym_cipher.decrypt(encrypted), 16).decode("ascii")
 
                         if command == "1":
-                            print("THIS IS WHERE EMAIL CREATION SERVER GOES")
+                            message = "Send this email\n"
+                            connectionSocket.send(encrypt_message(message, sym_key))
+                            
+                            email = connectionSocket.recv(2048)
+                            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+                            
+                            email = decrypt_message(email, sym_key)
+                            email = email.replace("\033[1mTime and Date:\033[0m", f"\033[1mTime and Date:\033[0m {current_time}")
+                            print(email)
+                            
+                            client = splice_word(email, "From")
+                            dest = splice_word(email, "To")
+                            length = splice_word(email, "Length")
+                             
+                            print(f"An email from {client} is sent to {dest} has content length of {length}")
+                            title = splice_word(email, "Title")
+                            
+                            current_path = os.getcwd()
+                            new_path = os.path.join(current_path, f'{client}', f'{client}_{title}.txt')
+                            with open(new_path, "w") as file:
+                                file.write(email)
+ 
+                            
                         elif command == "2":
                             print("THIS IS WHERE INBOX DISPLAY SERVER GOES")
                         elif command == "3":
