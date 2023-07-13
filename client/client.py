@@ -41,8 +41,14 @@ def export_public_key(public_key, username='john'):
 
 
 # Read in the public key as binary and save in a variable
-def import_public_key(public_key, username='john'):
+def import_public_key(username='john'):
     with open(f'{username}_public.pem', 'rb') as file:
+        client_public_key = file.read()
+    return client_public_key
+
+# Read in the private key as binary and save in a variable
+def import_private_key(username='john'):
+    with open(f'{username}_private.pem', 'rb') as file:
         client_public_key = file.read()
     return client_public_key
 
@@ -53,45 +59,41 @@ def print_encrypted_sym(encrypted_sym_key):
     print('SYMMETRIC KEY (HEX): ', encrypted_sym_key_hex)
     return
 
-
 def initial_connection_protocol(clientSocket):
     # This is the server client communication protocol for when the initial connection
 
     # Creates the key and cipher from the server public key
-    f = open("server_public.pem", "rb")
-    server_pub = RSA.importKey(f.read())
-    f.close()
+    server_pub = RSA.importKey(import_public_key("server"))
     cipher_rsa_server = PKCS1_OAEP.new(server_pub)
 
     # Enters and sends the username
-    username = input("Enter Username:")
+    username = input("Enter Username: ")
     encrypted = cipher_rsa_server.encrypt(username.encode("ascii"))
     clientSocket.send(encrypted)
 
     # Enters and sends the password
-    password = input("Enter Password:")
+    password = input("Enter Password: ")
     encrypted = cipher_rsa_server.encrypt(password.encode("ascii"))
     clientSocket.send(encrypted)
 
     # Receives the Response
     response = clientSocket.recv(2048)
-    if response.decode('ascii') == "Invalid Username or Password":
-        print("Invalid Username or Password\nTerminating")
+    try:
+        reply = response.decode('ascii')
+        print(f"{reply}\nTerminating")
         return False, None
-    else:
-        # Creates the public key for the client and cipher from the client public key
-        f = open(f"{username}_private.pem", "rb")
-        client_pri = RSA.importKey(f.read())
-        f.close()
+    except Exception:
+
+        # Creates the private key for the client and cipher from the client public key
+        client_pri = RSA.importKey(import_private_key(username))
         private_rsa_client = PKCS1_OAEP.new(client_pri)
 
         # Receives the symmetric key from the server
-        sym_key = private_rsa_client.decrypt(response).decode("ascii")
-        # noinspection PyTypeChecker
+        sym_key = private_rsa_client.decrypt(response)
         sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
         # Sends the OK to the server
-        encrypted = sym_cipher.encrypt("OK".encode("ascii"))
+        encrypted = sym_cipher.encrypt(pad("OK".encode("ascii"), 16))
         clientSocket.send(encrypted)
 
         return True, sym_key
@@ -103,7 +105,7 @@ def initial_connection_protocol(clientSocket):
 def client():
     # Server Information
     serverName = '127.0.0.1' #'localhost'
-    serverPort = 12000
+    serverPort = 13000
     
     #Create client socket that useing IPv4 and TCP protocols 
     try:
@@ -126,15 +128,20 @@ def client():
             while command != "4":
                 # Gets instructions from the server
                 encrypted = clientSocket.recv(2048)
-                instructions = sym_cipher.decrypt(encrypted).decode("ascii")
+                instructions = unpad(sym_cipher.decrypt(encrypted), 16).decode("ascii")
                 print(instructions)
+                command = input("choice: ")
+
+                # Sends command to the server
+                encrypted = sym_cipher.encrypt(pad(command.encode('ascii'), 16))
+                clientSocket.send(encrypted)
 
                 if command == "1":
-                    print("THIS IS WHERE EMAIL CREATION CLIENT GOES")
+                    print("THIS IS WHERE EMAIL CREATION CLIENT GOES\n")
                 elif command == "2":
-                    print("THIS IS WHERE INBOX DISPLAY CLIENT GOES")
+                    print("THIS IS WHERE INBOX DISPLAY CLIENT GOES\n")
                 elif command == "3":
-                    print("THIS IS WHERE EMAIL DISPLAY CLIENT GOES")
+                    print("THIS IS WHERE EMAIL DISPLAY CLIENT GOES\n")
         
         # Client terminate connection with the server
         clientSocket.close()

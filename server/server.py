@@ -61,10 +61,16 @@ def export_public_key(public_key):
 
 
 # User this to save the server public key binary to a variable
-def import_public_key():
-    with open('server_public.pem', 'rb') as file:
+def import_public_key(username):
+    with open(f'{username}_public.pem', 'rb') as file:
         server_public_key = file.read()
     return server_public_key
+
+# Read in the private key as binary and save in a variable
+def import_private_key():
+    with open(f'server_private.pem', 'rb') as file:
+        client_public_key = file.read()
+    return client_public_key
 
 
 # Use this to encrypt public_key which was generated via RSA
@@ -96,9 +102,7 @@ def initial_connection_protocol(connectionSocket):
     # This is the server client communication protocol for when the initial connection
 
     # Creates the private key and cipher from the server private key
-    f = open("server_private.pem", "rb")
-    server_pri = RSA.importKey(f.read())
-    f.close()
+    server_pri = RSA.importKey(import_private_key())
     private_rsa_server = PKCS1_OAEP.new(server_pri)
 
     # Receives the username
@@ -122,27 +126,21 @@ def initial_connection_protocol(connectionSocket):
 
     if match:
         # Creates the public key for the client and cipher from the client public key
-        f = open(f"{username}_public.pem", "rb")
-        client_pub = RSA.importKey(f.read())
-        f.close()
+        client_pub = RSA.importKey(import_public_key(username))
         public_rsa_client = PKCS1_OAEP.new(client_pub)
 
         # Creates and sends the sym key
-        # sym_key = sym_keygen()
-        # encrypted = public_rsa_client.encrypt(sym_key.encode("ascii"))
-        # connectionSocket.send(encrypted)
-
-        # Generate Cipher
-        # sym_cipher = AES.new(sym_key, AES.MODE_ECB)
+        sym_key = generate_sym_key()
+        encrypted = public_rsa_client.encrypt(sym_key)
+        connectionSocket.send(encrypted)
 
         print(f"Connection Accepted and Symmetric Key Generated for Client:{username}")
 
         # Receive OK (Not sure if this is what to do here, should ask in class)
         encrypted = connectionSocket.recv(2048)
-        # message = sym_cipher.decrypt(encrypted).decode("ascii")
-        # print(f"{message} Recived")
 
-        # return True, sym_key
+
+        return True, sym_key
     else:
         # Sends denied connection in the clear
         connectionSocket.send("Invalid Username or Password".encode('ascii'))
@@ -152,7 +150,7 @@ def initial_connection_protocol(connectionSocket):
 
 def server():
     # Server port
-    serverPort = 12000
+    serverPort = 13000
 
     # Create server socket that uses IPv4 and TCP protocols
     try:
@@ -199,8 +197,12 @@ def server():
                             "2) Display the Inbox List\n    " \
                             "3) Display the Email Contents\n    " \
                             "4) Terminate the Connection".encode('ascii')
-                        encrypted = sym_cipher.encrypt(instructions)
+                        encrypted = sym_cipher.encrypt(pad(instructions, 16))
                         connectionSocket.send(encrypted)
+
+                        # Gets command from client
+                        encrypted = connectionSocket.recv(2048)
+                        command = unpad(sym_cipher.decrypt(encrypted), 16).decode("ascii")
 
                         if command == "1":
                             print("THIS IS WHERE EMAIL CREATION SERVER GOES")
