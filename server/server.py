@@ -130,21 +130,17 @@ def initial_connection_protocol(connectionSocket):
         public_rsa_client = PKCS1_OAEP.new(client_pub)
 
         # Creates and sends the sym key
-        sym_key = generate_sym_key(256)
+        sym_key = generate_sym_key()
         encrypted = public_rsa_client.encrypt(sym_key)
         connectionSocket.send(encrypted)
-
-        # Generate Cipher
-        sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
         print(f"Connection Accepted and Symmetric Key Generated for Client:{username}")
 
         # Receive OK (Not sure if this is what to do here, should ask in class)
         encrypted = connectionSocket.recv(2048)
-        message = sym_cipher.decrypt(encrypted).decode("ascii")
-        print(f"{message} Recived")
 
-        # return True, sym_key
+
+        return True, sym_key
     else:
         # Sends denied connection in the clear
         connectionSocket.send("Invalid Username or Password".encode('ascii'))
@@ -154,7 +150,7 @@ def initial_connection_protocol(connectionSocket):
 
 def server():
     # Server port
-    serverPort = 12000
+    serverPort = 13000
 
     # Create server socket that uses IPv4 and TCP protocols
     try:
@@ -201,8 +197,12 @@ def server():
                             "2) Display the Inbox List\n    " \
                             "3) Display the Email Contents\n    " \
                             "4) Terminate the Connection".encode('ascii')
-                        encrypted = sym_cipher.encrypt(instructions)
+                        encrypted = sym_cipher.encrypt(pad(instructions, 16))
                         connectionSocket.send(encrypted)
+
+                        # Gets command from client
+                        encrypted = connectionSocket.recv(2048)
+                        command = unpad(sym_cipher.decrypt(encrypted), 16).decode("ascii")
 
                         if command == "1":
                             print("THIS IS WHERE EMAIL CREATION SERVER GOES")
