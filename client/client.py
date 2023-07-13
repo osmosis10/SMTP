@@ -59,6 +59,15 @@ def print_encrypted_sym(encrypted_sym_key):
     print('SYMMETRIC KEY (HEX): ', encrypted_sym_key_hex)
     return
 
+# Use this to decrypt any messages that are need to be sent to the user
+# message is decrypted via AES using the sym_key
+def decrypt_message(encrypted_message, sym_key):
+    cipher_message = AES.new(sym_key, AES.MODE_ECB)
+    decrypted_message = cipher_message.decrypt(encrypted_message)
+    unpadded_message = unpad(decrypted_message, 16)
+    message = unpadded_message.decode('utf-8')
+    return message
+
 def initial_connection_protocol(clientSocket):
     # This is the server client communication protocol for when the initial connection
 

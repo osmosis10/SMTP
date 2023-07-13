@@ -90,6 +90,14 @@ def encrypt_message(message, sym_key):
     encrypted_message = cipher_message.encrypt(padded_message)
     return encrypted_message
 
+# Use this to decrypt any messages that are need to be sent to the user
+# message is decrypted via AES using the sym_key
+def decrypt_message(encrypted_message, sym_key):
+    cipher_message = AES.new(sym_key, AES.MODE_ECB)
+    decrypted_message = cipher_message.decrypt(encrypted_message)
+    unpadded_message = unpad(decrypted_message, 16)
+    message = unpadded_message.decode('utf-8')
+    return message
 
 # Gives you a string representation of the encrypted sym key
 def print_encrypted_sym(encrypted_sym_key):
