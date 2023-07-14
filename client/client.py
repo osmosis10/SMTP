@@ -181,7 +181,7 @@ def client():
                     print("The message is sent to the server.")
                     clientSocket.send(encrypt_message(email, sym_key))
                 elif command == "2":
-                    print("THIS IS WHERE INBOX DISPLAY CLIENT GOES\n")
+                    print("Waiting")
                 elif command == "3":
                     print("THIS IS WHERE EMAIL DISPLAY CLIENT GOES\n")
         

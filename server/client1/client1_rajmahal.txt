@@ -1,0 +1,6 @@
+[1mFrom:[0m client1
+[1mTo:[0m client1
+[1mTime and Date:[0m 2023-07-13 20:49:05.098717
+[1m[1mTitle:[0m rajmahal
+[1mContent Length:[0m 40
+[1mContent:[0m Whoever threw that paper, yo mom's a hoe

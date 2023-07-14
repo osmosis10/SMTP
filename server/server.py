@@ -156,13 +156,28 @@ def initial_connection_protocol(connectionSocket):
         encrypted = connectionSocket.recv(2048)
 
 
-        return True, sym_key
+        return True, sym_key, username
     else:
         # Sends denied connection in the clear
         connectionSocket.send("Invalid Username or Password".encode('ascii'))
         print(f"The received Client Information: {username} is invalid (Connection Terminated)")
         return False, None
 
+
+
+def substring(string, delimiter):
+    return string.partition(delimiter)[2]
+
+# Bubble sort for dates
+def bubblesort(elements):
+    swapped = False
+    for n in range(len(elements)-1, 0, -1):
+        for i in range(n):
+            if datetime.strptime(elements[i], '%Y-%m-%d %H:%M:%S') > datetime.strptime(elements[i + 1], '%Y-%m-%d %H:%M:%S'):
+                swapped = True
+                elements[i], elements[i + 1] = elements[i + 1], elements[i]       
+        if not swapped:
+            return
 
 def server():
     # Server port
@@ -198,7 +213,7 @@ def server():
             if pid == 0:
                 serverSocket.close()
 
-                accepted_connection, sym_key = initial_connection_protocol(connectionSocket)
+                accepted_connection, sym_key, username = initial_connection_protocol(connectionSocket)
                 if accepted_connection:
                     # noinspection PyTypeChecker
                     sym_cipher = AES.new(sym_key, AES.MODE_ECB)
@@ -245,7 +260,59 @@ def server():
  
                             
                         elif command == "2":
-                            print("THIS IS WHERE INBOX DISPLAY SERVER GOES")
+                            inbox = "\nIndex\tFrom\t\tDateTime\t\tTitle\n"
+                            folder = username # folder for client
+                            inbox_dict=  {} # dictionary for inbox data
+                            list_of_lines = {}
+                            filelist = os.listdir(folder) #list of files in folder
+                            list_dates = []
+                            
+                            date_counter = 0
+                            
+                            #try:
+                            for file in filelist:
+                                path = os.path.join(folder, file) #path to each file in the directory ex. client1/client1_Greetings.txt
+                                
+                                # OBTAINING DATA FROM FILES
+                                with open(path, "r") as email_file:
+                                    lines = email_file.readlines() # stores every line in file
+                                    print("INSIDE client1")
+                                    for line in lines:
+                                        print(line)
+                                        if (line.startswith("[1mFrom:[0m ")):
+                                            print("inside from")
+                                            # delemits the line and saves name of senders
+                                            client_sender = substring(line,"[1mFrom:[0m ").strip("\n")
+                                            
+                                            # delemits the line and saves name of sender
+                                        elif (line.startswith("[1mTime and Date:[0m ")):
+                                            print("inside tine")
+                                            date = substring(line, "[1mTime and Date:[0m ").strip("\n")
+                                            list_dates[date_counter] = date
+                                            date_counter +=1
+                                            
+                                            # delemits the line and saves name of sender
+                                        elif (line.startswith("[1m[1mTitle:[0m ")):
+                                            print("inside Title")
+                                            email_title = substring(line, "[1m[1mTitle:[0m ").strip("\n")
+
+                                    # stores relevant data into dictionary to be used later
+                                    inbox_dict[folder] = {"sender": client_sender, "date": date, "title": email_title}
+                                    #print(inbox_dict) # testing
+                                   
+    
+                                    
+                            
+                                    
+            
+                                    
+                                    
+                                    
+                                    
+            
+                                        
+                            
+                            
                         elif command == "3":
                             print("THIS IS WHERE EMAIL DISPLAY SERVER GOES")
 
