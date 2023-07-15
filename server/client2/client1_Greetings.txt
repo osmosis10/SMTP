@@ -1,0 +1,6 @@
+[1mFrom:[0m client1
+[1mTo:[0m client2;client3
+[1mTime and Date:[0m 2023-07-14 21:19:12.079070
+[1m[1mTitle:[0m Greetings
+[1mContent Length:[0m 5
+[1mContent:[0m Hello
