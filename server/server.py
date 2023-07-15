@@ -233,15 +233,20 @@ def server():
                             
                             client = splice_word(email, "From")
                             dest = splice_word(email, "To")
+                            dest_list = dest.split(";")
+                            print(dest_list)
                             length = splice_word(email, "Length")
                              
                             print(f"An email from {client} is sent to {dest} has content length of {length}")
                             title = splice_word(email, "Title")
-                            
+                            #file_path = os.path.join(current_path, f'{dest_list[i]}', f'{client}_{title}.txt')    
                             current_path = os.getcwd()
-                            new_path = os.path.join(current_path, f'{client}', f'{client}_{title}.txt')
-                            with open(new_path, "w") as file:
-                                file.write(email)
+                            for i in range(len(dest_list)):
+                                new_path = os.path.join(current_path, f'{dest_list[i]}')    
+                                if not os.path.exists(new_path):
+                                    os.makedirs(new_path)
+                                with open(os.path.join(new_path, f'{client}_{title}.txt'), "w") as file:
+                                    file.write(email)
  
                             
                         elif command == "2":
