@@ -178,7 +178,7 @@ def bubblesort(elements):
                 swapped = True
                 elements[i], elements[i + 1] = elements[i + 1], elements[i]       
         if not swapped:
-            return
+            return elements
         return elements
 
 def server():
@@ -278,6 +278,7 @@ def server():
                             email_names = [] # list to store email names
                             num_files = 0    # counter for # of emails
                             
+            
                             for file in filelist:
                                 path = os.path.join(folder, file) #path to each file in the directory ex. client1/client1_Greetings.txt
                                 email_names.append(file)
@@ -310,9 +311,12 @@ def server():
 
                             
                             inbox = "\nIndex\tFrom\t\tDateTime\t\t\t\tTitle\n"
-                            
+                            print(list_dates)
+                            print("before sorted dates")
                             sorted_dates = bubblesort(list_dates)
+                            print(sorted_dates)
                             num_files = len(sorted_dates)-1
+                            print(num_files)
                             real_index = 0
                             date_index = 0 # sorted stored date
                             
@@ -333,8 +337,9 @@ def server():
                                 date_index += 1 # used for updating the current sorted date
                                 
 
-                            
+                            print("before")
                             inbox_length = str(len(inbox)) #obtain size
+                            print(inbox_length)
                             connectionSocket.send(encrypt_message(inbox_length, sym_key)) # send size
                             ok_recv = connectionSocket.recv(2048) # recieve OK
                             connectionSocket.send(encrypt_message(inbox, sym_key)) # send inbox string
