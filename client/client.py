@@ -168,12 +168,28 @@ def client():
                         content = input("Enter filename: ")
                         length = file_length(content)
                         if (length > 1000000):
-                            print("File length cannod exceed 1,000,000")
+                            print("File size is too large (>1mB)")
+                            while True:
+                                content = input("Enter filename: ")
+                                length = file_length(content)
+                                if (length < 1000000):
+                                    break
+                                else:
+                                    print("File size is too large (>1mB)")
                         with open(content, 'r') as file:
                             content = file.read()
                     else:
                         content = input("Enter message contents: ")
                         length = len(content)
+                        if (length > 1000000):
+                            print("File size is too large (>1mB)")
+                            while True:
+                                content = input("Enter message contents: ")
+                                length = file_length(content)
+                                if (length < 1000000):
+                                    break
+                                else:
+                                    print("File size is too large (>1mB)")
                     email = f'\033[1mFrom:\033[0m {username}\n' \
                                 f'\033[1mTo:\033[0m {dest}\n' \
                                 f'\033[1mTime and Date:\033[0m\n' \
