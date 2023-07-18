@@ -183,7 +183,25 @@ def client():
                     print("The message is sent to the server.")
                     clientSocket.send(encrypt_message(email, sym_key))
                 elif command == "2":
-                    print("THIS IS WHERE INBOX DISPLAY CLIENT GOES\n")
+                    # Recieving size
+                    size = clientSocket.recv(2048)
+                    size_decrypt = int(decrypt_message(size, sym_key))
+                    clientSocket.send(encrypt_message("OK", sym_key)) # Send ok
+                    
+                    
+                    
+                    num_bytes = 0  # var for bytes length
+                    inbox = b"" # var for bytes
+                    
+                    while num_bytes < size_decrypt:
+                        chunk = clientSocket.recv(2048) # chunks to be recieved
+                        
+                        inbox += chunk # total message being added to
+                        num_bytes += len(inbox) # total # of bytes recieved
+                    
+                    inbox_decrypt = decrypt_message(inbox, sym_key) # decrypt and decode
+                    print(inbox_decrypt)
+                    
                 elif command == "3":
                     print("THIS IS WHERE EMAIL DISPLAY CLIENT GOES\n")
         

@@ -156,13 +156,30 @@ def initial_connection_protocol(connectionSocket):
         encrypted = connectionSocket.recv(2048)
 
 
-        return True, sym_key
+        return True, sym_key, username
     else:
         # Sends denied connection in the clear
         connectionSocket.send("Invalid Username or Password".encode('ascii'))
         print(f"The received Client Information: {username} is invalid (Connection Terminated)")
         return False, None
 
+
+
+def substring(string, delimiter):
+    return string.partition(delimiter)[2]
+
+# Bubble sort for dates
+def bubblesort(elements):
+    swapped = False
+    for n in range(len(elements)-1, 0, -1):
+        for i in range(n):
+            # datetime_obj1 = datetime.strptime(date_str1, '%Y-%m-%d %H:%M:%S')
+            if datetime.strptime(elements[i], '%Y-%m-%d %H:%M:%S.%f') > datetime.strptime(elements[i + 1], '%Y-%m-%d %H:%M:%S.%f'):
+                swapped = True
+                elements[i], elements[i + 1] = elements[i + 1], elements[i]       
+        if not swapped:
+            return elements
+        return elements
 
 def server():
     # Server port
@@ -198,7 +215,7 @@ def server():
             if pid == 0:
                 serverSocket.close()
 
-                accepted_connection, sym_key = initial_connection_protocol(connectionSocket)
+                accepted_connection, sym_key, username = initial_connection_protocol(connectionSocket)
                 if accepted_connection:
                     # noinspection PyTypeChecker
                     sym_cipher = AES.new(sym_key, AES.MODE_ECB)
@@ -250,7 +267,83 @@ def server():
  
                             
                         elif command == "2":
-                            print("THIS IS WHERE INBOX DISPLAY SERVER GOES")
+                            folder = username # folder for client
+                            inbox_dict=  {} # dictionary for inbox data
+                            inbox_dict[folder] = {} # Nest inbox_dictionary
+                            
+                            filelist = os.listdir(folder) #list of files in folder
+                            
+                            # ORDERING
+                            list_dates = []  # list to store dates individually to be sorted
+                            email_names = [] # list to store email names
+                            num_files = 0    # counter for # of emails
+                            
+            
+                            for file in filelist:
+                                path = os.path.join(folder, file) #path to each file in the directory ex. client1/client1_Greetings.txt
+                                email_names.append(file)
+                                
+                                # OBTAINING DATA FROM FILES
+                                with open(path, "r") as email_file:
+                                    lines = email_file.readlines() # stores every line in file
+                                    # reading each line in the email
+                                    for line in lines:
+                                        if (line.startswith("[1mFrom:[0m ")):
+                                            # delimits the line and saves name of SENDER
+                                            client_sender = substring(line,"[1mFrom:[0m ").strip("\n")
+                                            
+                                            # delimits the line and saves the DATE
+                                        elif (line.startswith("[1mTime and Date:[0m ")):
+                                            date = substring(line, "[1mTime and Date:[0m ").strip("\n")
+                                            list_dates.append(date)
+                        
+                                            
+                                            
+                                            # delimits the line and saves the TITLE
+                                        elif (line.startswith("[1m[1mTitle:[0m ")):
+                                            email_title = substring(line, "[1m[1mTitle:[0m ").strip("\n")
+
+
+                                        # stores relevant data into dictionary to be used later
+                                        # ex {client1: {greetings1.txt: {"sender": client_sender, ....}}}
+                                    inbox_dict[folder][file] = {"sender": client_sender, "date": date, "title": email_title}
+                                    num_files +=1
+
+                            
+                            inbox = "\nIndex\tFrom\t\tDateTime\t\t\t\tTitle\n"
+                            print(list_dates)
+                            print("before sorted dates")
+                            sorted_dates = bubblesort(list_dates)
+                            print(sorted_dates)
+                            num_files = len(sorted_dates)-1
+                            print(num_files)
+                            real_index = 0
+                            date_index = 0 # sorted stored date
+                            
+                            while (num_files >= 0):
+                                inbox_content = inbox_dict[folder] # parent dictionary {folder: {...}}
+                                date_in_order = sorted_dates[date_index] # sorted stored date
+                                
+                                for emails in email_names:   
+                                    email_data = inbox_content[emails] # for loop goes through each email
+                                    email_date = email_data["date"]
+                                    
+                                    if (date_in_order == email_date):
+                                        inbox += (f"{real_index}\t{email_data['sender']}\t\t"
+                                                  f"{date_in_order}\t\t{email_data['title']}\n")
+                                        
+                                num_files -=  1 # number of files to be compared
+                                real_index += 1 # used for inbox index value
+                                date_index += 1 # used for updating the current sorted date
+                                
+
+                            print("before")
+                            inbox_length = str(len(inbox)) #obtain size
+                            print(inbox_length)
+                            connectionSocket.send(encrypt_message(inbox_length, sym_key)) # send size
+                            ok_recv = connectionSocket.recv(2048) # recieve OK
+                            connectionSocket.send(encrypt_message(inbox, sym_key)) # send inbox string
+     
                         elif command == "3":
                             print("THIS IS WHERE EMAIL DISPLAY SERVER GOES")
 
