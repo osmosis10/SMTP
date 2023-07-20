@@ -181,6 +181,45 @@ def bubblesort(elements):
             return elements
         return elements
 
+def inbox_data (filelist, folder):
+    inbox_dict=  {} # dictionary for inbox data
+    inbox_dict[folder] = {} # Nest inbox_dictionary
+
+
+    list_dates = []  # list to store dates individually to be sorted
+    email_names = [] # list to store email names
+    num_files = 0    # counter for # of emails
+
+    for file in filelist:
+        path = os.path.join(folder, file) #path to each file in the directory ex. client1/client1_Greetings.txt
+        email_names.append(file)
+        
+        # OBTAINING DATA FROM FILES
+        with open(path, "r") as email_file:
+            lines = email_file.readlines() # stores every line in file
+            # reading each line in the email
+            for line in lines:
+                if (line.startswith("[1mFrom:[0m ")):
+                    # delimits the line and saves name of SENDER
+                    client_sender = substring(line,"[1mFrom:[0m ").strip("\n")
+                    
+                    # delimits the line and saves the DATE
+                elif (line.startswith("[1mTime and Date:[0m ")):
+                    date = substring(line, "[1mTime and Date:[0m ").strip("\n")
+                    list_dates.append(date)
+
+                    # delimits the line and saves the TITLE
+                elif (line.startswith("[1m[1mTitle:[0m ")):
+                    email_title = substring(line, "[1m[1mTitle:[0m ").strip("\n")
+
+
+                # stores relevant data into dictionary to be used later
+                # ex {client1: {greetings1.txt: {"sender": client_sender, ....}}}
+            inbox_dict[folder][file] = {"sender": client_sender, "date": date, "title": email_title}
+            num_files +=1
+    
+    return list_dates, email_names, num_files, inbox_dict
+
 def server():
     # Server port
     serverPort = 13000
@@ -268,57 +307,18 @@ def server():
                             
                         elif command == "2":
                             folder = username # folder for client
-                            inbox_dict=  {} # dictionary for inbox data
-                            inbox_dict[folder] = {} # Nest inbox_dictionary
-                            
-                            filelist = os.listdir(folder) #list of files in folder
-                            
-                            # ORDERING
-                            list_dates = []  # list to store dates individually to be sorted
-                            email_names = [] # list to store email names
-                            num_files = 0    # counter for # of emails
-                            
-            
-                            for file in filelist:
-                                path = os.path.join(folder, file) #path to each file in the directory ex. client1/client1_Greetings.txt
-                                email_names.append(file)
-                                
-                                # OBTAINING DATA FROM FILES
-                                with open(path, "r") as email_file:
-                                    lines = email_file.readlines() # stores every line in file
-                                    # reading each line in the email
-                                    for line in lines:
-                                        if (line.startswith("[1mFrom:[0m ")):
-                                            # delimits the line and saves name of SENDER
-                                            client_sender = substring(line,"[1mFrom:[0m ").strip("\n")
-                                            
-                                            # delimits the line and saves the DATE
-                                        elif (line.startswith("[1mTime and Date:[0m ")):
-                                            date = substring(line, "[1mTime and Date:[0m ").strip("\n")
-                                            list_dates.append(date)
-                        
-                                            
-                                            
-                                            # delimits the line and saves the TITLE
-                                        elif (line.startswith("[1m[1mTitle:[0m ")):
-                                            email_title = substring(line, "[1m[1mTitle:[0m ").strip("\n")
+                            filelist = os.listdir(folder) # list of files in folder
+                            list_dates, email_names, num_files, inbox_dict = inbox_data(filelist, folder) # function returns relevant lists, a counter and 
+                                                                                                          # inbox data dictionary
 
-
-                                        # stores relevant data into dictionary to be used later
-                                        # ex {client1: {greetings1.txt: {"sender": client_sender, ....}}}
-                                    inbox_dict[folder][file] = {"sender": client_sender, "date": date, "title": email_title}
-                                    num_files +=1
-
-                            
                             inbox = "\nIndex\tFrom\t\tDateTime\t\t\t\tTitle\n"
                             print(list_dates)
                             print("before sorted dates")
                             sorted_dates = bubblesort(list_dates)
-                            print(sorted_dates)
-                            num_files = len(sorted_dates)-1
-                            print(num_files)
-                            real_index = 0
-                            date_index = 0 # sorted stored date
+                            
+                            num_files = len(sorted_dates)-1  # number of files to be compared
+                            real_index = 0 # used for inbox index value
+                            date_index = 0 # used for updating the current sorted date
                             
                             while (num_files >= 0):
                                 inbox_content = inbox_dict[folder] # parent dictionary {folder: {...}}
@@ -332,12 +332,10 @@ def server():
                                         inbox += (f"{real_index}\t{email_data['sender']}\t\t"
                                                   f"{date_in_order}\t\t{email_data['title']}\n")
                                         
-                                num_files -=  1 # number of files to be compared
-                                real_index += 1 # used for inbox index value
-                                date_index += 1 # used for updating the current sorted date
-                                
+                                num_files -=  1 
+                                real_index += 1 
+                                date_index += 1 
 
-                            print("before")
                             inbox_length = str(len(inbox)) #obtain size
                             print(inbox_length)
                             connectionSocket.send(encrypt_message(inbox_length, sym_key)) # send size
