@@ -222,7 +222,7 @@ def inbox_data (filelist, folder):
 
 def server():
     # Server port
-    serverPort = 13000
+    serverPort = 12000
 
     # Create server socket that uses IPv4 and TCP protocols
     try:
@@ -280,7 +280,16 @@ def server():
                             message = "Send this email\n"
                             connectionSocket.send(encrypt_message(message, sym_key))
                             
-                            email = connectionSocket.recv(2048)
+                            email_length = connectionSocket.recv(2096)
+                            email_length = int(decrypt_message(email_length, sym_key))
+                            connectionSocket.send(encrypt_message("Ok", sym_key))
+                                    
+                            email = b''
+                            #The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
+                            while len(email) != email_length:
+                                data = connectionSocket.recv(4096)
+                                email += data
+                            
                             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
                             
                             email = decrypt_message(email, sym_key)

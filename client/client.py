@@ -1,6 +1,7 @@
 # This is an example from "Computer Networking: A Top Down Approach" textbook chapter 2
 import socket
 import sys
+import os
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes
@@ -77,9 +78,15 @@ def decrypt_message(encrypted_message, sym_key):
 
 def file_length(file):
     with open(file, "r") as f:
-        f = file.read()
-        length = len(f)
+        content = f.read()
+        length = len(content)
+        print(length)
         return length
+    
+def file_generator(path, num_characters):
+    with open(path, 'w') as file:
+        for i in range(num_characters):
+            file.write(chr(65 + (i % 26)))
     
 def initial_connection_protocol(clientSocket):
     # This is the server client communication protocol for when the initial connection
@@ -127,7 +134,7 @@ def initial_connection_protocol(clientSocket):
 def client():
     # Server Information
     serverName = '127.0.0.1' #'localhost'
-    serverPort = 13000
+    serverPort = 12000
     
     #Create client socket that useing IPv4 and TCP protocols 
     try:
@@ -166,12 +173,32 @@ def client():
                     load_file = input("Would you like to load contents from a file?(Y/N) " )
                     if (load_file.upper() == "Y"):
                         content = input("Enter filename: ")
+                        #print(content)
                         length = file_length(content)
                         if (length > 1000000):
-                            print("File length cannod exceed 1,000,000")
+                            print("File size is too large (>1mB)")
+                            while True:
+                                content = input("Enter filename: ")
+                                length = file_length(content)
+                                if (length <= 1000000):
+                                    break
+                                else:
+                                    print("File size is too large (>1mB)")
+                        with open(content, 'r') as file:
+                            content = file.read()
+                            #print(content)
                     else:
                         content = input("Enter message contents: ")
                         length = len(content)
+                        if (length > 1000000):
+                            print("File size is too large (>1mB)")
+                            while True:
+                                content = input("Enter message contents: ")
+                                length = file_length(content)
+                                if (length <= 1000000):
+                                    break
+                                else:
+                                    print("File size is too large (>1mB)")
                     email = f'\033[1mFrom:\033[0m {username}\n' \
                                 f'\033[1mTo:\033[0m {dest}\n' \
                                 f'\033[1mTime and Date:\033[0m\n' \
@@ -179,7 +206,21 @@ def client():
                                 f'\033[1mContent Length:\033[0m {length}\n' \
                                 f'\033[1mContent:\033[0m {content}\n'
                     print("The message is sent to the server.")
-                    clientSocket.send(encrypt_message(email, sym_key))
+                    encrypted_email = encrypt_message(email,sym_key)
+                    
+                    clientSocket.send(encrypt_message((str(len(encrypted_email))), sym_key))
+                    ok = clientSocket.recv(2048)
+                    ok = decrypt_message(ok, sym_key)
+                    offset = 0
+                    #The code below sends our email from above in chunks to better handle large file sizes
+                    while offset < len(encrypted_email):
+                        remaining = len(encrypted_email) - offset #Remaining size of email
+                        chunk_size = min(4096, remaining) #chunk_size is the minimum of the buffer(4096) or remaining(Size of remaining email)
+                        chunk = encrypted_email[offset:offset + chunk_size] #Takes characters from the offset to the offset and chunk_size
+                        clientSocket.send(chunk)
+                        offset += chunk_size #Adds the chunk_size to offset
+                        
+                    #clientSocket.send(encrypt_message(email, sym_key))
                 elif command == "2":
                     # Recieving size
                     size = clientSocket.recv(2048)
@@ -213,6 +254,11 @@ def client():
 
 #----------
 client()
+#file_path = 'test_file1.txt'
+#num_characters = 1000000
+#file_generator(file_path, num_characters)
+#with open(file_path, "r") as file:
+#    print(len(file.read()))
 
 
 
