@@ -244,9 +244,12 @@ def client():
                 elif command == "3":
                     print("THIS IS WHERE EMAIL DISPLAY CLIENT GOES\n")
         
+
+
         # Client terminate connection with the server
         clientSocket.close()
-        
+        print("The connection is terminated with the server")
+
     except socket.error as e:
         print('An error occured:',e)
         clientSocket.close()
