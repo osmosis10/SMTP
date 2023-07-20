@@ -6,7 +6,10 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
-
+def generate_keys():
+    private_key = RSA.generate(2048)
+    public_key = private_key.public_key()
+    return private_key, public_key
 def print_keys(private_key, public_key):
     # Print out the modulus of the private key
     # print(f'Start private_key.n {private_key.n} Stop private_key.n\n')
@@ -254,7 +257,6 @@ def client():
         print('An error occured:',e)
         clientSocket.close()
         sys.exit(1)
-
 #----------
 client()
 #file_path = 'test_file1.txt'
