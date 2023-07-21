@@ -367,11 +367,13 @@ def server():
 
 
                 connectionSocket.close()
+                print(f"Terminating connection with {username}")
 
                 return
 
             # Parent doesn't need this connection
             connectionSocket.close()
+
 
         except socket.error as e:
             print('An error occured:', e)
