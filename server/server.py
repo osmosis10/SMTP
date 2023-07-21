@@ -280,7 +280,7 @@ def server():
                             message = "Send this email\n"
                             connectionSocket.send(encrypt_message(message, sym_key))
                             
-                            email_length = connectionSocket.recv(2096)
+                            email_length = connectionSocket.recv(2048)
                             email_length = int(decrypt_message(email_length, sym_key))
                             connectionSocket.send(encrypt_message("Ok", sym_key))
                                     
@@ -351,7 +351,7 @@ def server():
                                     if (date_in_order == email_date):
                                         inbox += (f"{real_index}\t{email_data['sender']}\t\t"
                                                   f"{date_in_order}\t\t{email_data['title']}\n")
-                                        
+                                        print(inbox)
                                 num_files -=  1 
                                 real_index += 1 
                                 date_index += 1 
@@ -363,7 +363,11 @@ def server():
                             connectionSocket.send(encrypt_message(inbox, sym_key)) # send inbox string
      
                         elif command == "3":
-                            print("THIS IS WHERE EMAIL DISPLAY SERVER GOES")
+                            index_request = "the server request email index\n"
+                            connectionSocket.send(encrypt_message(message, sym_key))
+                            
+                            email_index = connectionSocket.recv(2048)
+                            
 
 
                 connectionSocket.close()

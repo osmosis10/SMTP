@@ -172,6 +172,9 @@ def client():
                     message = clientSocket.recv(2048)
                     print(decrypt_message(message,sym_key))
                     dest = input("Enter destinations (separated by ;): ")
+                    while dest.strip() == "":
+                        print("Invalid Input. Please enter atleast one destination.")
+                        dest = input("Enter destinations (separated by ;): ")
                     title = input("Enter title: ")
                     load_file = input("Would you like to load contents from a file?(Y/N) " )
                     if (load_file.upper() == "Y"):
@@ -245,7 +248,11 @@ def client():
                     print(inbox_decrypt)
                     
                 elif command == "3":
-                    print("THIS IS WHERE EMAIL DISPLAY CLIENT GOES\n")
+                    index_request = clientSocket.recv(2048)
+                    index_request = decrypt_message(index_request,sym_key)
+                    
+                    index = input("Enter the email index you wish to view: ")
+                    clientSocket.send(encrypt_message(index, sym_key))
         
 
 
