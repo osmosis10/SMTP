@@ -306,12 +306,23 @@ def server():
                             title = splice_word(email, "Title")
                             #file_path = os.path.join(current_path, f'{dest_list[i]}', f'{client}_{title}.txt')    
                             current_path = os.getcwd()
+                            index = 1
                             for i in range(len(dest_list)):
                                 new_path = os.path.join(current_path, f'{dest_list[i]}')    
                                 if not os.path.exists(new_path):
                                     os.makedirs(new_path)
-                                with open(os.path.join(new_path, f'{client}_{title}.txt'), "w") as file:
-                                    file.write(email)
+                                client_file_path = os.path.join(new_path, f'{client}_{title}.txt')
+                                #If the file exists within the folder, we add a number starting from 1 to the end of the file name.
+                                #Checks files until file(index) is not found and adds it to the folder
+                                if os.path.exists(client_file_path):
+                                    while os.path.exists(os.path.join(new_path, f'{client}_{title}({index}).txt')):
+                                        index += 1
+                                    with open(os.path.join(new_path, f'{client}_{title}({str(index)}).txt'), "w") as file:
+                                        file.write(email)
+                                    break
+                                else:
+                                    with open(client_file_path, "w") as file:
+                                        file.write(email)
  
                             
                         elif command == "2":
