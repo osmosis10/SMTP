@@ -64,7 +64,7 @@ def print_encrypted_sym(encrypted_sym_key):
     return
 
 def encrypt_message(message, sym_key):
-    binary_message = message.encode('utf-8')
+    binary_message = str(message).encode('utf-8')
     padded_message = pad(binary_message, 16)
     cipher_message = AES.new(sym_key, AES.MODE_ECB)
     encrypted_message = cipher_message.encrypt(padded_message)
@@ -250,10 +250,25 @@ def client():
                 elif command == "3":
                     index_request = clientSocket.recv(2048)
                     index_request = decrypt_message(index_request,sym_key)
+                    print(index_request)
                     
                     index = input("Enter the email index you wish to view: ")
                     clientSocket.send(encrypt_message(index, sym_key))
-        
+                    
+                    email_length = clientSocket.recv(2048) #Length of server side encrypted email
+                    email_length = decrypt_message(email_length, sym_key)
+                    
+                    clientSocket.send(encrypt_message("ok", sym_key))
+                    
+                    email = b''
+                    #The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
+                    while len(email) != int(email_length):
+                        data = clientSocket.recv(4096)
+                        email += data
+                    
+                    print(decrypt_message(email, sym_key))
+                    
+                    
 
 
         # Client terminate connection with the server
