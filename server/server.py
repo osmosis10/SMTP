@@ -85,7 +85,7 @@ def encrypt_key(public_key, sym_key):
 # Use this to encrypt any messages that are need to be sent to the user
 # message is encrypted via AES using the sym_key
 def encrypt_message(message, sym_key):
-    binary_message = message.encode('utf-8')
+    binary_message = str(message).encode('utf-8')
     padded_message = pad(binary_message, 16)
     cipher_message = AES.new(sym_key, AES.MODE_ECB)
     encrypted_message = cipher_message.encrypt(padded_message)
@@ -106,7 +106,8 @@ def print_encrypted_sym(encrypted_sym_key):
     print('SYMMETRIC KEY (HEX): ', encrypted_sym_key_hex)
     return
 
-def splice_word(string, target):
+#Made solely for finding our target words such as 'From' and 'To' from our email
+def splice_word(string, target): 
     start = string.find(target)
     middle = string.find(":", start)
     middle2 = string.find("m", middle)
@@ -182,18 +183,18 @@ def bubblesort(elements):
         return elements
 
 def inbox_data (filelist, folder):
-    
-    # ORDERING
+    inbox_dict=  {} # dictionary for inbox data
+    inbox_dict[folder] = {} # Nest inbox_dictionary
+
+
     list_dates = []  # list to store dates individually to be sorted
     email_names = [] # list to store email names
     num_files = 0    # counter for # of emails
 
-    inbox_dict=  {} # dictionary for inbox data
-    inbox_dict[folder] = {} # Nest inbox_dictionary
     for file in filelist:
         path = os.path.join(folder, file) #path to each file in the directory ex. client1/client1_Greetings.txt
         email_names.append(file)
-                                
+        
         # OBTAINING DATA FROM FILES
         with open(path, "r") as email_file:
             lines = email_file.readlines() # stores every line in file
@@ -208,22 +209,21 @@ def inbox_data (filelist, folder):
                     date = substring(line, "[1mTime and Date:[0m ").strip("\n")
                     list_dates.append(date)
 
-                    
-                    
                     # delimits the line and saves the TITLE
                 elif (line.startswith("[1m[1mTitle:[0m ")):
                     email_title = substring(line, "[1m[1mTitle:[0m ").strip("\n")
 
 
-            # stores relevant data into dictionary to be used later
-            # ex {client1: {greetings1.txt: {"sender": client_sender, ....}}}
-        inbox_dict[folder][file] = {"sender": client_sender, "date": date, "title": email_title}
-        num_files +=1
+                # stores relevant data into dictionary to be used later
+                # ex {client1: {greetings1.txt: {"sender": client_sender, ....}}}
+            inbox_dict[folder][file] = {"sender": client_sender, "date": date, "title": email_title}
+            num_files +=1
+    
     return list_dates, email_names, num_files, inbox_dict
 
 def server():
     # Server port
-    serverPort = 13000
+    serverPort = 12000
 
     # Create server socket that uses IPv4 and TCP protocols
     try:
@@ -244,6 +244,8 @@ def server():
     # The server can only have one connection in its queue waiting for acceptance
     serverSocket.listen(5)
 
+    email_list = [] #Email titles in sorted order
+    
     while 1:
         try:
             # Server accepts client connection
@@ -281,7 +283,16 @@ def server():
                             message = "Send this email\n"
                             connectionSocket.send(encrypt_message(message, sym_key))
                             
-                            email = connectionSocket.recv(2048)
+                            email_length = connectionSocket.recv(2048)
+                            email_length = int(decrypt_message(email_length, sym_key))
+                            connectionSocket.send(encrypt_message("Ok", sym_key))
+                                    
+                            email = b''
+                            #The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
+                            while len(email) != email_length:
+                                data = connectionSocket.recv(4096)
+                                email += data
+                            
                             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
                             
                             email = decrypt_message(email, sym_key)
@@ -298,25 +309,39 @@ def server():
                             title = splice_word(email, "Title")
                             #file_path = os.path.join(current_path, f'{dest_list[i]}', f'{client}_{title}.txt')    
                             current_path = os.getcwd()
+                            index = 1
                             for i in range(len(dest_list)):
                                 new_path = os.path.join(current_path, f'{dest_list[i]}')    
                                 if not os.path.exists(new_path):
                                     os.makedirs(new_path)
-                                with open(os.path.join(new_path, f'{client}_{title}.txt'), "w") as file:
-                                    file.write(email)
+                                client_file_path = os.path.join(new_path, f'{client}_{title}.txt')
+                                #If the file exists within the folder, we add a number starting from 1 to the end of the file name.
+                                #Checks files until file(index) is not found and adds it to the folder
+                                if os.path.exists(client_file_path):
+                                    while os.path.exists(os.path.join(new_path, f'{client}_{title}({index}).txt')):
+                                        index += 1
+                                    with open(os.path.join(new_path, f'{client}_{title}({str(index)}).txt'), "w") as file:
+                                        file.write(email)
+                                    break
+                                else:
+                                    with open(client_file_path, "w") as file:
+                                        file.write(email)
  
                             
                         elif command == "2":
                             folder = username # folder for client
-                            filelist = os.listdir(folder) #list of files in folder
-                            list_dates, email_names, num_files, inbox_dict = inbox_data(filelist, folder) # function returns relevant lists
-                                                                                                          # and dictionary containing each files inbox data
+                            filelist = os.listdir(folder) # list of files in folder
+                            list_dates, email_names, num_files, inbox_dict = inbox_data(filelist, folder) # function returns relevant lists, a counter and 
+                                                                                                          # inbox data dictionary
+
                             inbox = "\nIndex\tFrom\t\tDateTime\t\t\t\tTitle\n"
                             sorted_dates = bubblesort(list_dates)
-                            num_files = len(sorted_dates)-1
-                            real_index = 0 # index that will be displayed in the inbox string
-                            date_index = 0 # index for iterating over the sorted dates
-
+                            
+                            num_files = len(sorted_dates)-1  # number of files to be compared
+                            real_index = 1 # used for inbox index value
+                            date_index = 0 # used for updating the current sorted date
+                            
+                            email_list.clear() #Clears email_list each time client calls "2"
                             while (num_files >= 0):
                                 inbox_content = inbox_dict[folder] # parent dictionary {folder: {...}}
                                 date_in_order = sorted_dates[date_index] # sorted stored date
@@ -328,27 +353,63 @@ def server():
                                     if (date_in_order == email_date):
                                         inbox += (f"{real_index}\t{email_data['sender']}\t\t"
                                                   f"{date_in_order}\t\t{email_data['title']}\n")
-                                        
-                                num_files -=  1 # number of files to be compared
-                                real_index += 1 # used for inbox index value
-                                date_index += 1 # used for updating the current sorted date
-                            
-                            # SENDING CHUNKS
+                                        #print(inbox)
+                                        email_list.append(f"{email_data['sender']}:{email_data['title']}") #Appends sorted titles into email_list
+                                        #print(email_list)
+                                num_files -=  1 
+                                real_index += 1 
+                                date_index += 1 
+
                             inbox_length = str(len(inbox)) #obtain size
+                            #print(inbox_length)
                             connectionSocket.send(encrypt_message(inbox_length, sym_key)) # send size
                             ok_recv = connectionSocket.recv(2048) # recieve OK
                             connectionSocket.send(encrypt_message(inbox, sym_key)) # send inbox string
      
                         elif command == "3":
-                            print("THIS IS WHERE EMAIL DISPLAY SERVER GOES")
+                            index_request = "the server request email index\n"
+                            connectionSocket.send(encrypt_message(index_request, sym_key))
+                            
+                            email_index = connectionSocket.recv(2048) #Recieve chosen index from client
+                            email_index = decrypt_message(email_index, sym_key) 
+                            
+                            
+                            temp = email_list[int(email_index)-1] #find chosen email title from email_list based on client chosen index-1
+                            email_source =  temp[:temp.find(":")]
+                            email_title = temp[temp.find(":")+1:]
+                            
+                            client_file_path = os.path.join(os.getcwd(), username, f"{email_source}_{email_title}.txt") #Path to client chosen file
+
+                            with open(client_file_path, "r") as file:
+                                chosen_email = file.read()
+                            
+                            encrypted_chosen_email = encrypt_message(chosen_email, sym_key) 
+                            
+                            #print(len(encrypted_chosen_email))
+                            connectionSocket.send(encrypt_message(len(encrypted_chosen_email), sym_key)) #Send the length of our encrypted email to use on client side
+                            
+                            ok = connectionSocket.recv(2048)
+                            ok = decrypt_message(ok, sym_key)
+                            
+                            offset = 0
+                            #The code below sends our email from above in chunks to better handle large file sizes
+                            while offset < len(encrypted_chosen_email):
+                                remaining = len(encrypted_chosen_email) - offset #Remaining size of email
+                                chunk_size = min(4096, remaining) #chunk_size is the minimum of the buffer(4096) or remaining(Size of remaining email)
+                                chunk = encrypted_chosen_email[offset:offset + chunk_size] #Takes characters from the offset to the offset and chunk_size
+                                #print(chunk)
+                                connectionSocket.send(chunk)
+                                offset += chunk_size #Adds the chunk_size to offset
 
 
                 connectionSocket.close()
+                print(f"Terminating connection with {username}")
 
                 return
 
             # Parent doesn't need this connection
             connectionSocket.close()
+
 
         except socket.error as e:
             print('An error occured:', e)
