@@ -127,7 +127,7 @@ def substring(string, delimiter):
 # Bubble sort for dates
 def bubblesort(elements):
     # Added to prevent issues when the length of elements is 1 (otherwise
-    # returns 1) - Conlan
+    # returns 1) - ConlanS
     if len(elements) == 1:
         return elements
     swapped = False
