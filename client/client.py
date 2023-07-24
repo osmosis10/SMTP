@@ -150,7 +150,7 @@ def client():
                         #print(content)
                         length = file_length(content)
                         if (length > 1000000):
-                            print("File size is too large (>1mB)")
+                            print("Message length too long (max 1,000,000 characters)")
                             while True:
                                 content = input("Enter filename: ")
                                 length = file_length(content)
@@ -230,7 +230,7 @@ def client():
                     
                     email = b''
                     #The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
-                    while len(email) != int(email_length):
+                    while len(email) < int(email_length):
                         data = clientSocket.recv(4096)
                         email += data
                     
