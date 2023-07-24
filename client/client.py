@@ -222,13 +222,14 @@ def client():
                     
                     index = input("Enter the email index you wish to view: ")
                     clientSocket.send(encrypt_message(index, sym_key))
-                    
+                    print("index prompt")
                     email_length = clientSocket.recv(2048) #Length of server side encrypted email
                     email_length = decrypt_message(email_length, sym_key)
                     
                     clientSocket.send(encrypt_message("ok", sym_key))
                     
                     email = b''
+                    print(f"email_legnth: {email_length}")
                     #The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
                     while len(email) != int(email_length):
                         data = clientSocket.recv(4096)
