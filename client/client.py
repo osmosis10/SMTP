@@ -150,7 +150,7 @@ def client():
                         #print(content)
                         length = file_length(content)
                         if (length > 1000000):
-                            print("File size is too large (>1mB)")
+                            print("Message length too long (max 1,000,000 characters)")
                             while True:
                                 content = input("Enter filename: ")
                                 length = file_length(content)
