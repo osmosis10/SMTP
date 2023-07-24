@@ -257,11 +257,6 @@ def client():
         sys.exit(1)
 #----------
 client()
-#file_path = 'test_file3.txt'
-#num_characters = 1000001
-#file_generator(file_path, num_characters)
-#with open(file_path, "r") as file:
-#    print(len(file.read()))
 
 
 
