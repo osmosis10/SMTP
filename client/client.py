@@ -230,7 +230,7 @@ def client():
                     
                     email = b''
                     #The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
-                    while len(email) != int(email_length):
+                    while len(email) < int(email_length):
                         data = clientSocket.recv(4096)
                         email += data
                     
