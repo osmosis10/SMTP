@@ -286,8 +286,10 @@ def server():
                                     with open(client_file_path, "w") as file:
                                         file.write(email)
  
-                            
-                        elif command == "2":
+                        # This protocol will generate a dictionary for email data for either 
+                        # protocol's 2 or 3 but only sends over the inbox if the user chooses
+                        # protocol 2
+                        if command == "2" or command == "3":
                             folder = username # folder for client
                             filelist = os.listdir(folder) # list of files in folder
                             list_dates, email_names, num_files, inbox_dict = inbox_data(filelist, folder) # function returns relevant lists, a counter and 
@@ -301,7 +303,7 @@ def server():
                             num_files = len(sorted_dates)-1  # number of files to be compared
                             real_index = 1 # used for inbox index value
                             date_index = 0 # used for updating the current sorted date
-                            
+                            print("Entered 2 at top")
                             email_list.clear() #Clears email_list each time client calls "2"
                             while (num_files >= 0):
                                 inbox_content = inbox_dict[folder] # parent dictionary {folder: {...}}
@@ -320,27 +322,30 @@ def server():
                                 num_files -=  1 
                                 real_index += 1 
                                 date_index += 1 
-
-                            inbox_length = str(len(inbox)) #obtain size
-                            #print(inbox_length)
-                            connectionSocket.send(encrypt_message(inbox_length, sym_key)) # send size
-                            ok_recv = connectionSocket.recv(2048) # recieve OK
-                            connectionSocket.send(encrypt_message(inbox, sym_key)) # send inbox string
+                            print("Entered 2 at end")
+                            
+                            # if the client entered a 2 the inbox is sent to the client
+                            if command == "2":
+                                inbox_length = str(len(inbox)) #obtain size
+                                #print(inbox_length)
+                                connectionSocket.send(encrypt_message(inbox_length, sym_key)) # send size
+                                ok_recv = connectionSocket.recv(2048) # recieve OK
+                                connectionSocket.send(encrypt_message(inbox, sym_key)) # send inbox string
      
-                        elif command == "3":
+                        if command == "3":
                             index_request = "the server request email index\n"
                             connectionSocket.send(encrypt_message(index_request, sym_key))
                             
                             email_index = connectionSocket.recv(2048) #Recieve chosen index from client
                             email_index = decrypt_message(email_index, sym_key) 
                             
-                            
+                            print(email_list)
                             temp = email_list[int(email_index)-1] #find chosen email title from email_list based on client chosen index-1
                             email_source =  temp[:temp.find(":")]
                             email_title = temp[temp.find(":")+1:]
                             
                             client_file_path = os.path.join(os.getcwd(), username, f"{email_source}_{email_title}.txt") #Path to client chosen file
-
+                            print("with open")
                             with open(client_file_path, "r") as file:
                                 chosen_email = file.read()
                             
