@@ -281,12 +281,10 @@ def server():
                             
                             email = decrypt_message(email, sym_key)
                             email = email.replace("\033[1mTime and Date:\033[0m", f"\033[1mTime and Date:\033[0m {current_time}")
-                            print(email)
                             
                             client = splice_word(email, "From")
                             dest = splice_word(email, "To")
                             dest_list = dest.split(";")
-                            print(dest_list)
                             length = splice_word(email, "Length")
                              
                             print(f"An email from {client} is sent to {dest} has content length of {length}")
@@ -354,7 +352,6 @@ def server():
                             
                             encrypted_chosen_email = encrypt_message(chosen_email, sym_key) 
                             
-                            #print(len(encrypted_chosen_email))
                             connectionSocket.send(encrypt_message(len(encrypted_chosen_email), sym_key)) #Send the length of our encrypted email to use on client side
                             
                             ok = connectionSocket.recv(2048)
@@ -366,7 +363,6 @@ def server():
                                 remaining = len(encrypted_chosen_email) - offset #Remaining size of email
                                 chunk_size = min(4096, remaining) #chunk_size is the minimum of the buffer(4096) or remaining(Size of remaining email)
                                 chunk = encrypted_chosen_email[offset:offset + chunk_size] #Takes characters from the offset to the offset and chunk_size
-                                #print(chunk)
                                 connectionSocket.send(chunk)
                                 offset += chunk_size #Adds the chunk_size to offset
 

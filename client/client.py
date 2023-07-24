@@ -51,7 +51,6 @@ def file_length(file):
     with open(file, "r") as f:
         content = f.read()
         length = len(content)
-        print(length)
         return length
     
 def file_generator(path, num_characters):
@@ -99,7 +98,12 @@ def initial_connection_protocol(clientSocket):
         return True, sym_key, username
 
 
-
+def read_lines():
+    lines = ""
+    
+    while True:
+        line = input()
+        
 
 
 def client():
@@ -141,13 +145,22 @@ def client():
                     print(decrypt_message(message,sym_key))
                     dest = input("Enter destinations (separated by ;): ")
                     while dest.strip() == "":
-                        print("Invalid Input. Please enter atleast one destination.")
+                        print("Invalid input. Please enter at least one destination.")
                         dest = input("Enter destinations (separated by ;): ")
                     title = input("Enter title: ")
+                    while title.strip() == "":
+                        print("Invalid input. Do not leave empty.")
+                        title = input("Enter title: ")
                     load_file = input("Would you like to load contents from a file?(Y/N) " )
+                    while load_file.upper() not in ("N", "Y"):
+                        if load_file.strip() == "":
+                            print("Invalid input. Do not leave empty.")
+                            load_file = input("Would you like to load contents from a file?(Y/N) ")
+                        else:
+                            print("Invalid input.")
+                            load_file = input("Would you like to load contents from a file?(Y/N) ")
                     if (load_file.upper() == "Y"):
                         content = input("Enter filename: ")
-                        #print(content)
                         length = file_length(content)
                         if (length > 1000000):
                             print("Message length too long (max 1,000,000 characters)")
@@ -161,18 +174,9 @@ def client():
                         with open(content, 'r') as file:
                             content = file.read()
                             #print(content)
-                    else:
+                    elif (load_file.upper() == "N"): #We don't have a limit check when the user inputs text, as we assume they will not go paste the terminal limit of 4095 characters
                         content = input("Enter message contents: ")
-                        length = len(content)
-                        if (length > 1000000):
-                            print("File size is too large (>1mB)")
-                            while True:
-                                content = input("Enter message contents: ")
-                                length = file_length(content)
-                                if (length <= 1000000):
-                                    break
-                                else:
-                                    print("File size is too large (>1mB)")
+                        length = len(content) 
                     email = f'\033[1mFrom:\033[0m {username}\n' \
                                 f'\033[1mTo:\033[0m {dest}\n' \
                                 f'\033[1mTime and Date:\033[0m\n' \
@@ -221,6 +225,9 @@ def client():
                     print(index_request)
                     
                     index = input("Enter the email index you wish to view: ")
+                    while index.strip() == "" or not index.isdigit():
+                        print("Invalid input. Please enter an index from the options above.")
+                        index = input("Enter the email index you wish to view: ")
                     clientSocket.send(encrypt_message(index, sym_key))
                     print("index prompt")
                     email_length = clientSocket.recv(2048) #Length of server side encrypted email
@@ -250,11 +257,6 @@ def client():
         sys.exit(1)
 #----------
 client()
-#file_path = 'test_file1.txt'
-#num_characters = 1000000
-#file_generator(file_path, num_characters)
-#with open(file_path, "r") as file:
-#    print(len(file.read()))
 
 
 
