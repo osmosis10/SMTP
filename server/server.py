@@ -180,6 +180,30 @@ def inbox_data (filelist, folder):
     
     return list_dates, email_names, num_files, inbox_dict
 
+def create_inbox(inbox, inbox_dict, email_list, email_names, num_files, sorted_dates, folder):
+    real_index = 1 # used for inbox index value
+    date_index = 0 # used for updating the current sorted date
+    
+    while (num_files >= 0):
+        inbox_content = inbox_dict[folder] # parent dictionary {folder: {...}}
+        date_in_order = sorted_dates[date_index] # sorted stored date
+        
+        for emails in email_names:   
+            email_data = inbox_content[emails] # for loop goes through each email
+            email_date = email_data["date"]
+            
+            if (date_in_order == email_date):
+                inbox += (f"{real_index}\t{email_data['sender']}\t\t"
+                            f"{date_in_order}\t\t{email_data['title']}\n")
+                email_list.append(f"{email_data['sender']}:{email_data['title']}") #Appends sorted titles into email_list
+
+        num_files -=  1 
+        real_index += 1 
+        date_index += 1 
+
+    
+    return inbox, email_list
+
 def server():
     # Server port
     serverPort = 12000
@@ -238,6 +262,7 @@ def server():
                         encrypted = connectionSocket.recv(2048)
                         command = unpad(sym_cipher.decrypt(encrypted), 16).decode("ascii")
 
+                        # Sending email
                         if command == "1":
                             message = "Send this email\n"
                             connectionSocket.send(encrypt_message(message, sym_key))
@@ -287,51 +312,29 @@ def server():
                                         file.write(email)
  
                         # This protocol will generate a dictionary for email data for either 
-                        # protocol's 2 or 3 but only sends over the inbox if the user chooses
-                        # protocol 2
+                        # protocol's 2 or 3 but only sends over the inbox if the user chooses protocol 2
                         if command == "2" or command == "3":
                             folder = username # folder for client
                             filelist = os.listdir(folder) # list of files in folder
-                            list_dates, email_names, num_files, inbox_dict = inbox_data(filelist, folder) # function returns relevant lists, a counter and 
-                                                                                                          # inbox data dictionary
-
-                            inbox = "\nIndex\tFrom\t\tDateTime\t\t\t\tTitle\n"
-                            print(list_dates)
-                            print("before sorted dates")
-                            sorted_dates = bubblesort(list_dates)
+                            list_dates, email_names, num_files, inbox_dict = inbox_data(filelist, folder) # function returns relevant lists, a counter and                                                                           # inbox data dictionary
+                            sorted_dates = bubblesort(list_dates) # sorts list of dates
                             
                             num_files = len(sorted_dates)-1  # number of files to be compared
-                            real_index = 1 # used for inbox index value
-                            date_index = 0 # used for updating the current sorted date
-                            print("Entered 2 at top")
-                            email_list.clear() #Clears email_list each time client calls "2"
-                            while (num_files >= 0):
-                                inbox_content = inbox_dict[folder] # parent dictionary {folder: {...}}
-                                date_in_order = sorted_dates[date_index] # sorted stored date
-                                
-                                for emails in email_names:   
-                                    email_data = inbox_content[emails] # for loop goes through each email
-                                    email_date = email_data["date"]
-                                    
-                                    if (date_in_order == email_date):
-                                        inbox += (f"{real_index}\t{email_data['sender']}\t\t"
-                                                  f"{date_in_order}\t\t{email_data['title']}\n")
-                                        #print(inbox)
-                                        email_list.append(f"{email_data['sender']}:{email_data['title']}") #Appends sorted titles into email_list
-                                        #print(email_list)
-                                num_files -=  1 
-                                real_index += 1 
-                                date_index += 1 
-                            print("Entered 2 at end")
+                            inbox = "\nIndex\tFrom\t\tDateTime\t\t\t\tTitle\n"
+                            email_list.clear() #Clears email_list each time client calls "2" or "3"
                             
-                            # if the client entered a 2 the inbox is sent to the client
+                            # create_inbox() creates the returns the inbox string and updates the email_list
+                            inbox, email_list = create_inbox(inbox, inbox_dict, email_list, email_names, num_files, sorted_dates, folder)
+                            
+                            # if the client entered a 2 the inbox is sent to the client, 
+                            # otherwise only the inbox dictionary and email_list is created/updated
                             if command == "2":
                                 inbox_length = str(len(inbox)) #obtain size
-                                #print(inbox_length)
                                 connectionSocket.send(encrypt_message(inbox_length, sym_key)) # send size
                                 ok_recv = connectionSocket.recv(2048) # recieve OK
                                 connectionSocket.send(encrypt_message(inbox, sym_key)) # send inbox string
-     
+                        
+                        # Sending over email contents
                         if command == "3":
                             index_request = "the server request email index\n"
                             connectionSocket.send(encrypt_message(index_request, sym_key))
