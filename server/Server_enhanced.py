@@ -96,7 +96,7 @@ def initial_connection_protocol(connectionSocket):
     encrypted = connectionSocket.recv(2048)
     password = private_rsa_server.decrypt(encrypted).decode("ascii")
 
-    # Creates the public key for the client and cipher from the client public key
+    # Gets the public key and makes a hash of the username to verify the received signature
     client_pub = RSA.importKey(import_public_key(username))
     hash_sig = SHA256.new(username.encode("ascii"))
     verification = pss.new(client_pub)
@@ -118,7 +118,7 @@ def initial_connection_protocol(connectionSocket):
         match = False
 
     if match:
-
+        # Creates public Cipher from the client public key
         public_rsa_client = PKCS1_OAEP.new(client_pub)
 
         # Creates and sends the sym key

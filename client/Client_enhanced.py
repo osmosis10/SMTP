@@ -100,7 +100,7 @@ def initial_connection_protocol(clientSocket):
         print(f"{reply}\nTerminating")
         return False, None, username
     except UnicodeDecodeError:
-        # Creates the private key for the client and cipher from the client public key
+        # Creates the Cipher from the client public key
         private_rsa_client = PKCS1_OAEP.new(client_pri)
 
         # Receives the symmetric key from the server
