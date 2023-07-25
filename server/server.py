@@ -193,8 +193,8 @@ def create_inbox(inbox, inbox_dict, email_list, email_names, num_files, sorted_d
             email_date = email_data["date"]
             
             if (date_in_order == email_date):
-                inbox += (f"{real_index}\t{email_data['sender']}\t\t"
-                            f"{date_in_order}\t\t{email_data['title']}\n")
+                inbox += (f"{real_index:<8}{email_data['sender']:<12}"
+                            f"{date_in_order:<31}{email_data['title']}\n")
                 email_list.append(f"{email_data['sender']}:{email_data['title']}") #Appends sorted titles into email_list
 
         num_files -=  1 
@@ -316,9 +316,9 @@ def server():
                             filelist = os.listdir(folder) # list of files in folder
                             list_dates, email_names, num_files, inbox_dict = inbox_data(filelist, folder) # function returns relevant lists, a counter and                                                                           # inbox data dictionary
                             sorted_dates = bubblesort(list_dates) # sorts list of dates
-                            
+
                             num_files = len(sorted_dates)-1  # number of files to be compared
-                            inbox = "\nIndex\tFrom\t\tDateTime\t\t\t\tTitle\n"
+                            inbox = "\nIndex   From\t\tDateTime\t\t\t\t\t   Title\n"
                             email_list.clear() #Clears email_list each time client calls "2" or "3"
                             
                             # create_inbox() creates the returns the inbox string and updates the email_list
