@@ -100,8 +100,9 @@ def initial_connection_protocol(connectionSocket):
     client_pub = RSA.importKey(import_public_key(username))
     hash_sig = SHA256.new(username.encode("ascii"))
     verification = pss.new(client_pub)
-
-    if verification.verify(hash_sig, signature):
+    try:
+        verification.verify(hash_sig, signature)
+    except ValueError:
         connectionSocket.send("Incorrect Digital Signature".encode("ascii"))
         print(f"The received Client Digital Signature from: {username} is invalid (Connection Terminated)")
         return False, None
