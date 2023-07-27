@@ -6,43 +6,11 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
-def generate_keys():
-    private_key = RSA.generate(2048)
-    public_key = private_key.public_key()
-    return private_key, public_key
-def print_keys(private_key, public_key):
-    # Print out the modulus of the private key
-    # print(f'Start private_key.n {private_key.n} Stop private_key.n\n')
-    # Print out the exponent of the private key
-    # print(f'Start private_key.d {private_key.d} Stop private_key.d\n')
-    # Print out the modulus of the public key
-    # print(f'Start public_key.n {public_key.n} Stop public_key.n\n')
-    # Print out the exponent of the public key
-    # print(f'Start public_key.e {public_key.e} Stop public_key.e\n')
 
-    private_key_pem = private_key.export_key()
-    public_key_pem = public_key.export_key()
-
-    print(private_key_pem)
-    print(public_key_pem)
-    return
-
-
-# Use this to save the server private key as a pem file to the current
-# directory
-def export_private_key(private_key, username='john'):
-    with open(f'{username}_private.pem', 'wb') as file:
-        file = file.write(private_key.export_key('PEM'))
-    return
-
-
-# Use this to save the server public key as a pem file to the current
-# directory
-def export_public_key(public_key, username='john'):
-    with open(f'{username}_public.pem', 'wb') as file:
-        file = file.write(public_key.export_key('PEM'))
-    return
-
+# Use this to generate a sym_key of size 32(256bits)
+# Can change size to change the size of the key
+def generate_sym_key(size=32):
+    return get_random_bytes(size)
 
 # Read in the public key as binary and save in a variable
 def import_public_key(username='john'):
@@ -83,7 +51,6 @@ def file_length(file):
     with open(file, "r") as f:
         content = f.read()
         length = len(content)
-        print(length)
         return length
     
 def file_generator(path, num_characters):
@@ -114,8 +81,7 @@ def initial_connection_protocol(clientSocket):
         reply = response.decode('ascii')
         print(f"{reply}\nTerminating")
         return False, None, username
-    except Exception:
-
+    except UnicodeDecodeError:
         # Creates the private key for the client and cipher from the client public key
         client_pri = RSA.importKey(import_private_key(username))
         private_rsa_client = PKCS1_OAEP.new(client_pri)
@@ -131,12 +97,17 @@ def initial_connection_protocol(clientSocket):
         return True, sym_key, username
 
 
-
+def read_lines():
+    lines = ""
+    
+    while True:
+        line = input()
+        
 
 
 def client():
     # Server Information
-    serverName = '127.0.0.1' #'localhost'
+    serverName = input("Enter the server IP or name: ")
     serverPort = 12000
     
     #Create client socket that useing IPv4 and TCP protocols 
@@ -173,16 +144,25 @@ def client():
                     print(decrypt_message(message,sym_key))
                     dest = input("Enter destinations (separated by ;): ")
                     while dest.strip() == "":
-                        print("Invalid Input. Please enter atleast one destination.")
+                        print("Invalid input. Please enter at least one destination.")
                         dest = input("Enter destinations (separated by ;): ")
                     title = input("Enter title: ")
+                    while title.strip() == "":
+                        print("Invalid input. Do not leave empty.")
+                        title = input("Enter title: ")
                     load_file = input("Would you like to load contents from a file?(Y/N) " )
+                    while load_file.upper() not in ("N", "Y"):
+                        if load_file.strip() == "":
+                            print("Invalid input. Do not leave empty.")
+                            load_file = input("Would you like to load contents from a file?(Y/N) ")
+                        else:
+                            print("Invalid input.")
+                            load_file = input("Would you like to load contents from a file?(Y/N) ")
                     if (load_file.upper() == "Y"):
                         content = input("Enter filename: ")
-                        #print(content)
                         length = file_length(content)
                         if (length > 1000000):
-                            print("File size is too large (>1mB)")
+                            print("Message length too long (max 1,000,000 characters)")
                             while True:
                                 content = input("Enter filename: ")
                                 length = file_length(content)
@@ -193,18 +173,9 @@ def client():
                         with open(content, 'r') as file:
                             content = file.read()
                             #print(content)
-                    else:
+                    elif (load_file.upper() == "N"): #We don't have a limit check when the user inputs text, as we assume they will not go paste the terminal limit of 4095 characters
                         content = input("Enter message contents: ")
-                        length = len(content)
-                        if (length > 1000000):
-                            print("File size is too large (>1mB)")
-                            while True:
-                                content = input("Enter message contents: ")
-                                length = file_length(content)
-                                if (length <= 1000000):
-                                    break
-                                else:
-                                    print("File size is too large (>1mB)")
+                        length = len(content) 
                     email = f'\033[1mFrom:\033[0m {username}\n' \
                                 f'\033[1mTo:\033[0m {dest}\n' \
                                 f'\033[1mTime and Date:\033[0m\n' \
@@ -253,16 +224,20 @@ def client():
                     print(index_request)
                     
                     index = input("Enter the email index you wish to view: ")
+                    while index.strip() == "" or not index.isdigit():
+                        print("Invalid input. Please enter an index from the options above.")
+                        index = input("Enter the email index you wish to view: ")
                     clientSocket.send(encrypt_message(index, sym_key))
-                    
+                    print("index prompt")
                     email_length = clientSocket.recv(2048) #Length of server side encrypted email
                     email_length = decrypt_message(email_length, sym_key)
                     
                     clientSocket.send(encrypt_message("ok", sym_key))
                     
                     email = b''
+                    print(f"email_legnth: {email_length}")
                     #The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
-                    while len(email) != int(email_length):
+                    while len(email) < int(email_length):
                         data = clientSocket.recv(4096)
                         email += data
                     
@@ -281,11 +256,6 @@ def client():
         sys.exit(1)
 #----------
 client()
-#file_path = 'test_file1.txt'
-#num_characters = 1000000
-#file_generator(file_path, num_characters)
-#with open(file_path, "r") as file:
-#    print(len(file.read()))
 
 
 
