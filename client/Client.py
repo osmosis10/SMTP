@@ -127,6 +127,7 @@ def client():
             sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
             command = "0"
+            inbox_printed = 0
             # Loops until the command is 4 (exit)
             while command != "4":
                 # Gets instructions from the server
@@ -198,7 +199,7 @@ def client():
                         offset += chunk_size #Adds the chunk_size to offset
                         
                     #clientSocket.send(encrypt_message(email, sym_key))
-                elif command == "2":
+                if command == "2" or command == "3" and inbox_printed == 0:
                     # Recieving size
                     size = clientSocket.recv(2048)
                     size_decrypt = int(decrypt_message(size, sym_key))
@@ -217,8 +218,9 @@ def client():
                     
                     inbox_decrypt = decrypt_message(inbox, sym_key) # decrypt and decode
                     print(inbox_decrypt)
+                    inbox_printed += 1
                     
-                elif command == "3":
+                if command == "3":
                     index_request = clientSocket.recv(2048)
                     index_request = decrypt_message(index_request,sym_key)
                     print(index_request)
