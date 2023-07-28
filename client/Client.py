@@ -247,6 +247,17 @@ def client():
                         print("Invalid input. Please enter an index from the options above.")
                         index = input("Enter the email index you wish to view: ")
                     clientSocket.send(encrypt_message(index, sym_key))
+                    
+                    index_response = clientSocket.recv(2048)
+                    index_response = decrypt_message(index_response, sym_key)
+                    while index_response != "Ok":
+                        index = input("input index: ")
+                        clientSocket.send(encrypt_message(index, sym_key))
+                        index_response = clientSocket.recv(2048)
+                        index_response = decrypt_message(index_response, sym_key)
+                        if index_response == "Ok":
+                            break
+                    
                     print("index prompt")
                     email_length = clientSocket.recv(2048) #Length of server side encrypted email
                     email_length = decrypt_message(email_length, sym_key)

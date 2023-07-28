@@ -357,7 +357,14 @@ def server():
                             email_index = connectionSocket.recv(2048) #Recieve chosen index from client
                             email_index = decrypt_message(email_index, sym_key) 
                             
-                            
+                            while True:
+                                if int(email_index) < 0 or int(email_index) > len(email_list):
+                                    connectionSocket.send(encrypt_message("Index out of range. Please enter another index: ", sym_key))
+                                    email_index = connectionSocket.recv(2048)
+                                    email_index = decrypt_message(email_index, sym_key)
+                                else:
+                                    connectionSocket.send(encrypt_message("Ok", sym_key))
+                                    break
                             
                             print(email_list)
                             temp = email_list[int(email_index)-1] #find chosen email title from email_list based on client chosen index-1
