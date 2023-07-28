@@ -1,5 +1,7 @@
-# This is an example from "Computer Networking: A Top Down Approach" textbook chapter 2
-# You can try this with nc localhost 12000 Test
+# This is the enhanced with additional security server side of the SMTP program
+# Conlan Myers - 3110785
+# ADD other names here
+#
 import json
 import socket
 import sys, glob, datetime
@@ -99,9 +101,11 @@ def initial_connection_protocol(connectionSocket):
     # Gets the public key and makes a hash of the username to verify the received signature
     client_pub = RSA.importKey(import_public_key(username))
     hash_sig = SHA256.new(username.encode("ascii"))
+    print("Hash: ", hash_sig.digest())
     verification = pss.new(client_pub)
     try:
         verification.verify(hash_sig, signature)
+
     except ValueError:
         connectionSocket.send("Incorrect Digital Signature".encode("ascii"))
         print(f"The received Client Digital Signature from: {username} is invalid (Connection Terminated)")

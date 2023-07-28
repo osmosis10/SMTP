@@ -1,4 +1,6 @@
-# This is an example from "Computer Networking: A Top Down Approach" textbook chapter 2
+# This is the enhanced with additional security client side of the SMTP program
+# Conlan Myers - 3110785
+# ADD other names here
 import socket
 import sys
 import os
@@ -81,10 +83,11 @@ def initial_connection_protocol(clientSocket):
 
     # Creates, sends, and signs a hash for digital signature
     hash_sig = SHA256.new(username.encode("ascii"))
+    print("Hash: ", hash_sig.digest())
     client_pri = RSA.importKey(import_private_key(username))
     signature = pss.new(client_pri)
     clientSocket.send(signature.sign(hash_sig))
-
+    print("Signature: ",signature.sign(hash_sig))
     # Sends the username
     encrypted = cipher_rsa_server.encrypt(username.encode("ascii"))
     clientSocket.send(encrypted)
