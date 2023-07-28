@@ -246,7 +246,9 @@ def server():
                     sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
                     command = "0"
+                    seq = None
                     # Loops until the command is 4 (exit)
+                    increment = int(decrypt_message(connectionSocket.recv(2048), sym_key))
                     while command != "4":
                         # Creates and sends the instructions
                         instructions = \
@@ -261,9 +263,10 @@ def server():
                         # Gets command from client
                         encrypted = connectionSocket.recv(2048)
                         command = unpad(sym_cipher.decrypt(encrypted), 16).decode("ascii")
-
+                        
                         # Sending email
                         if command == "1":
+                            print(seq)
                             message = "Send this email\n"
                             connectionSocket.send(encrypt_message(message, sym_key))
                             
@@ -271,17 +274,30 @@ def server():
                             email_length = int(decrypt_message(email_length, sym_key))
                             connectionSocket.send(encrypt_message("Ok", sym_key))
                                     
-                            email = b''
+                            json_data = b''
                             #The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
-                            while len(email) != email_length:
+                            while len(json_data) < email_length:
                                 data = connectionSocket.recv(4096)
-                                email += data
+                                json_data += data
+                            json_data = decrypt_message(json_data, sym_key)
+                            json_data = json.loads(json_data)
                             
+                            email = json_data['message']
+                            sequence_number = json_data['seq']
+                            
+                            if seq == None:
+                                seq = sequence_number + increment
+                            else:
+                                if seq == sequence_number:
+                                    #seq += sequence_number + increment use this to test the else statement
+                                    seq += increment
+                                else:
+                                    continue
+                                
                             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-                            
-                            email = decrypt_message(email, sym_key)
+  
                             email = email.replace("\033[1mTime and Date:\033[0m", f"\033[1mTime and Date:\033[0m {current_time}")
-                            
+ 
                             client = splice_word(email, "From")
                             dest = splice_word(email, "To")
                             dest_list = dest.split(";")
@@ -339,6 +355,8 @@ def server():
                             
                             email_index = connectionSocket.recv(2048) #Recieve chosen index from client
                             email_index = decrypt_message(email_index, sym_key) 
+                            
+                            
                             
                             print(email_list)
                             temp = email_list[int(email_index)-1] #find chosen email title from email_list based on client chosen index-1

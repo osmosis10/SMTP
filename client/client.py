@@ -2,6 +2,7 @@
 import socket
 import sys
 import os
+import json
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes
@@ -105,6 +106,11 @@ def read_lines():
         line = input()
         
 
+def get_random_sequence():
+    return int.from_bytes(os.urandom(4), byteorder="big")
+
+def get_random_next():
+    return int.from_bytes(os.urandom(1), byteorder="big")
 
 def client():
     # Server Information
@@ -128,6 +134,10 @@ def client():
             sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
             command = "0"
+            
+            sequence_number = get_random_sequence()
+            increment = get_random_next()
+            clientSocket.send(encrypt_message(increment, sym_key))
             # Loops until the command is 4 (exit)
             while command != "4":
                 # Gets instructions from the server
@@ -140,7 +150,7 @@ def client():
                 encrypted = sym_cipher.encrypt(pad(command.encode('ascii'), 16))
                 clientSocket.send(encrypted)
 
-                if command == "1":
+                if command == "1":             
                     message = clientSocket.recv(2048)
                     print(decrypt_message(message,sym_key))
                     dest = input("Enter destinations (separated by ;): ")
@@ -183,8 +193,14 @@ def client():
                                 f'\033[1m\033[1mTitle:\033[0m {title}\n'\
                                 f'\033[1mContent Length:\033[0m {length}\n' \
                                 f'\033[1mContent:\033[0m {content}\n'
+                    payload = {
+                        'message': email, 
+                        'seq': sequence_number
+                    }
+                    
+                    json_data = json.dumps(payload)
                     print("The message is sent to the server.")
-                    encrypted_email = encrypt_message(email,sym_key)
+                    encrypted_email = encrypt_message(json_data,sym_key)
                     
                     clientSocket.send(encrypt_message((str(len(encrypted_email))), sym_key))
                     ok = clientSocket.recv(2048)
@@ -199,6 +215,7 @@ def client():
                         offset += chunk_size #Adds the chunk_size to offset
                         
                     #clientSocket.send(encrypt_message(email, sym_key))
+                    sequence_number += increment
                 elif command == "2":
                     # Recieving size
                     size = clientSocket.recv(2048)
