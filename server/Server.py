@@ -1,5 +1,7 @@
-# This is an example from "Computer Networking: A Top Down Approach" textbook chapter 2
-# You can try this with nc localhost 12000 Test
+# This is the server side of the SMTP program
+# Conlan Myers - 3110785
+# ADD other names here
+#
 import json
 import socket
 import sys, glob, datetime

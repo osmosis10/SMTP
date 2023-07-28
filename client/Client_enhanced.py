@@ -1,4 +1,6 @@
-# This is an example from "Computer Networking: A Top Down Approach" textbook chapter 2
+# This is the enhanced with additional security client side of the SMTP program
+# Conlan Myers - 3110785
+# ADD other names here
 import socket
 import sys
 import os
