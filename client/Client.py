@@ -114,7 +114,7 @@ def get_random_next():
 def client():
     # Server Information
     serverName = input("Enter the server IP or name: ")
-    serverPort = 12000
+    serverPort = 13000
     
     #Create client socket that useing IPv4 and TCP protocols 
     try:
@@ -251,7 +251,7 @@ def client():
                     index_response = clientSocket.recv(2048)
                     index_response = decrypt_message(index_response, sym_key)
                     while index_response != "Ok":
-                        index = input("input index: ")
+                        index = input(index_response)
                         clientSocket.send(encrypt_message(index, sym_key))
                         index_response = clientSocket.recv(2048)
                         index_response = decrypt_message(index_response, sym_key)
@@ -265,11 +265,13 @@ def client():
                     clientSocket.send(encrypt_message("ok", sym_key))
                     
                     email = b''
-                    print(f"email_legnth: {email_length}")
+                    print(f"email_length: {email_length}")
                     #The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
                     while len(email) < int(email_length):
+                        print(len(email))
                         data = clientSocket.recv(4096)
                         email += data
+                        print(len(email))
                     
                     print(decrypt_message(email, sym_key))
                     
@@ -286,6 +288,8 @@ def client():
         sys.exit(1)
 #----------
 client()
+
+#file_generator("testfile4.txt", 500000)
 
 
 

@@ -206,7 +206,7 @@ def create_inbox(inbox, inbox_dict, email_list, email_names, num_files, sorted_d
 
 def server():
     # Server port
-    serverPort = 12000
+    serverPort = 13000
 
     # Create server socket that uses IPv4 and TCP protocols
     try:
@@ -259,12 +259,14 @@ def server():
                             "3) Display the Email Contents\n    " \
                             "4) Terminate the Connection".encode('ascii')
                         encrypted = sym_cipher.encrypt(pad(instructions, 16))
+                        print("HERE1")
                         connectionSocket.send(encrypted)
-
+                        print("HERE2")
                         # Gets command from client
                         encrypted = connectionSocket.recv(2048)
+                        print("HERE3")
                         command = unpad(sym_cipher.decrypt(encrypted), 16).decode("ascii")
-                        
+                        print("HERE4")
                         # Sending email
                         if command == "1":
                             print(seq)
