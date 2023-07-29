@@ -108,11 +108,6 @@ def read_lines():
         line = input()
         
 
-def get_random_sequence():
-    return int.from_bytes(os.urandom(4), byteorder="big")
-
-def get_random_next():
-    return int.from_bytes(os.urandom(1), byteorder="big")
 
 def client():
     # Server Information
@@ -137,9 +132,6 @@ def client():
 
             command = "0"
             
-            sequence_number = get_random_sequence()
-            increment = get_random_next()
-            clientSocket.send(encrypt_message(increment, sym_key))
             inbox_printed = 0
             # Loops until the command is 4 (exit)
             while command != "4":
@@ -161,7 +153,7 @@ def client():
                         print("Invalid input. Please enter at least one destination.")
                         dest = input("Enter destinations (separated by ;): ")
                     title = input("Enter title: ")
-                    while title.strip() == "":
+                    while title.strip() == ""or "/" in title or "\\" in title:
                         print("Invalid input. Do not leave empty.")
                         title = input("Enter title: ")
                     load_file = input("Would you like to load contents from a file?(Y/N) " )
@@ -196,14 +188,9 @@ def client():
                                 f'\033[1m\033[1mTitle:\033[0m {title}\n'\
                                 f'\033[1mContent Length:\033[0m {length}\n' \
                                 f'\033[1mContent:\033[0m {content}\n'
-                    payload = {
-                        'message': email, 
-                        'seq': sequence_number
-                    }
-                    
-                    json_data = json.dumps(payload)
+
                     print("The message is sent to the server.")
-                    encrypted_email = encrypt_message(json_data,sym_key)
+                    encrypted_email = encrypt_message(email,sym_key)
                     
                     clientSocket.send(encrypt_message((str(len(encrypted_email))), sym_key))
                     ok = clientSocket.recv(2048)
@@ -216,9 +203,12 @@ def client():
                         chunk = encrypted_email[offset:offset + chunk_size] #Takes characters from the offset to the offset and chunk_size
                         clientSocket.send(chunk)
                         offset += chunk_size #Adds the chunk_size to offset
-                        
+                    
                     #clientSocket.send(encrypt_message(email, sym_key))
-                    sequence_number += increment
+                    
+                    valid_response = decrypt_message(clientSocket.recv(2048), sym_key)
+                    if valid_response != "Ok":
+                        print(valid_response)
                 if command == "2" or command == "3" and inbox_printed == 0:
                     # Recieving size
                     size = clientSocket.recv(2048)
@@ -255,26 +245,24 @@ def client():
                     index_response = decrypt_message(index_response, sym_key)
                     while index_response != "Ok":
                         index = input(index_response)
+                        while index.strip() == "" or not index.isdigit():
+                            index = input(index_response)
                         clientSocket.send(encrypt_message(index, sym_key))
                         index_response = clientSocket.recv(2048)
                         index_response = decrypt_message(index_response, sym_key)
                         if index_response == "Ok":
                             break
                     
-                    print("index prompt")
                     email_length = clientSocket.recv(2048) #Length of server side encrypted email
                     email_length = decrypt_message(email_length, sym_key)
                     
                     clientSocket.send(encrypt_message("ok", sym_key))
                     
                     email = b''
-                    print(f"email_length: {email_length}")
                     #The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
                     while len(email) < int(email_length):
-                        print(len(email))
                         data = clientSocket.recv(4096)
                         email += data
-                        print(len(email))
                     
                     print(decrypt_message(email, sym_key))
                     

@@ -12,8 +12,8 @@ from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Signature import pss
-from Crypto.Hash import SHA256
-
+from Crypto.Hash import SHA256, HMAC
+from Crypto.Util import Counter
 
 # Use this to generate a sym_key of size 32(256bits)
 # Can change size to change the size of the key
@@ -52,6 +52,14 @@ def encrypt_message(message, sym_key):
     encrypted_message = cipher_message.encrypt(padded_message)
     return encrypted_message
 
+def encrypt_message_ctr(message,sym_key, nonce):
+    ctr = Counter.new(64, prefix=nonce, little_endian=True, allow_wraparound=True)
+    binary_message = str(message).encode('utf-8')
+    padded_message = pad(binary_message, 16)
+    cipher_message = AES.new(sym_key, AES.MODE_CTR, counter=ctr)
+    encrypted_message = cipher_message.encrypt(padded_message)
+    encrypted_payload = nonce + encrypted_message
+    return encrypted_payload
 
 # Use this to decrypt any messages that are need to be sent to the user
 # message is decrypted via AES using the sym_key
@@ -62,6 +70,26 @@ def decrypt_message(encrypted_message, sym_key):
     message = unpadded_message.decode('utf-8')
     return message
 
+def decrypt_message_ctr(encrypted_message, sym_key, nonce):
+    ctr = Counter.new(64, prefix=nonce, little_endian=True, allow_wraparound=True)
+    cipher_message = AES.new(sym_key, AES.MODE_CTR, counter=ctr)
+    decrypted_message = cipher_message.decrypt(encrypted_message)
+    unpadded_message = unpad(decrypted_message, 16)
+    message = unpadded_message.decode('utf-8')
+    return message
+
+def validate_mac(message, mac, sym_key):
+    with open("server_private.pem", "rb") as file:
+        server_priv = file.read()
+    with open("client1_public.pem", "rb") as file:
+        client_pub = file.read()
+    h = HMAC.new(sym_key, message.encode(), digestmod=SHA256)
+    try:
+        h.hexverify(mac)
+        return "Valid Message"
+    except ValueError:
+        return "Invalid message"
+    
 
 # Gives you a string representation of the encrypted sym key
 def print_encrypted_sym(encrypted_sym_key):
@@ -261,7 +289,7 @@ def server():
             connectionSocket, addr = serverSocket.accept()
             print(addr, '   ', connectionSocket)
             pid = os.fork()
-
+            accepted_clients = ["client1","client2","client3","client4","client5"]
             # If it is a client process
             if pid == 0:
                 serverSocket.close()
@@ -272,7 +300,10 @@ def server():
                     sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
                     command = "0"
+                    seq = None
+                    inbox_printed = 0 # num of times inbox has been generated
                     # Loops until the command is 4 (exit)
+                    increment = int(decrypt_message(connectionSocket.recv(2048), sym_key))
                     while command != "4":
                         # Creates and sends the instructions
                         instructions = \
@@ -297,30 +328,64 @@ def server():
                             email_length = int(decrypt_message(email_length, sym_key))
                             connectionSocket.send(encrypt_message("Ok", sym_key))
 
-                            email = b''
+                            json_data = b''
                             # The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
-                            while len(email) != email_length:
+                            while len(json_data) < email_length:
                                 data = connectionSocket.recv(4096)
-                                email += data
-
+                                json_data += data
+                            nonce = json_data[:8]
+                            email_data = json_data[8:]
+                            email_data = decrypt_message_ctr(email_data, sym_key, nonce)
+                            email_data = json.loads(email_data)
+                            mac = email_data['mac']
+                            if 'mac' in email_data:
+                                del email_data['mac']
+                            email_data = json.dumps(email_data)
+                            print(validate_mac(email_data, mac, sym_key))
+                            
+                            email_data = json.loads(email_data)
+                            email = email_data['message']
+                            sequence_number = email_data['seq']
+                            
+                            if seq == None:
+                                seq = sequence_number + increment
+                            else:
+                                if seq == sequence_number:
+                                    #seq += sequence_number + increment #use this to test the else statement
+                                    seq += increment
+                                else:
+                                    continue
                             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-
-                            email = decrypt_message(email, sym_key)
-                            email = email.replace("\033[1mTime and Date:\033[0m",
-                                                  f"\033[1mTime and Date:\033[0m {current_time}")
-
+                            #email = decrypt_message(email, sym_key)
+                            email = email.replace("\033[1mTime and Date:\033[0m",f"\033[1mTime and Date:\033[0m {current_time}")
                             client = splice_word(email, "From")
                             dest = splice_word(email, "To")
                             dest_list = dest.split(";")
                             length = splice_word(email, "Length")
+                            invalid_clients = []
+                            valid_clients = []
+                            for item in dest_list:
+                                if item not in accepted_clients:
+                                    #connectionSocket.send(f"Email not sent to {item}. Invalid recipient.")
+                                    invalid_clients.append(item)
+                                else:
+                                    valid_clients.append(item)
+                            if len(invalid_clients) != 0:
+                                delimited_string = ", ".join(invalid_clients)
+                                invalid_clients = "Email was not sent to " + delimited_string + ". Invalid recipient(s)"
+                                connectionSocket.send(encrypt_message(invalid_clients, sym_key))
+                            else:
+                                connectionSocket.send(encrypt_message("Ok", sym_key))
+                            
+                            dest = ";".join(valid_clients)
 
                             print(f"An email from {client} is sent to {dest} has content length of {length}")
                             title = splice_word(email, "Title")
                             # file_path = os.path.join(current_path, f'{dest_list[i]}', f'{client}_{title}.txt')
                             current_path = os.getcwd()
                             index = 1
-                            for i in range(len(dest_list)):
-                                new_path = os.path.join(current_path, f'{dest_list[i]}')
+                            for i in range(len(valid_clients)):
+                                new_path = os.path.join(current_path, f'{valid_clients[i]}')
                                 if not os.path.exists(new_path):
                                     os.makedirs(new_path)
                                 client_file_path = os.path.join(new_path, f'{client}_{title}.txt')
@@ -339,11 +404,10 @@ def server():
 
                         # This protocol will generate a dictionary for email data for either 
                         # protocol's 2 or 3 but only sends over the inbox if the user chooses protocol 2
-                        if command == "2" or command == "3":
+                        if command == "2" or command == "3" and inbox_printed == 0:
                             folder = username  # folder for client
                             filelist = os.listdir(folder)  # list of files in folder
-                            list_dates, email_names, num_files, inbox_dict = inbox_data(filelist,
-                                                                                        folder)  # function returns relevant lists, a counter and                                                                           # inbox data dictionary
+                            list_dates, email_names, num_files, inbox_dict = inbox_data(filelist,folder)  # function returns relevant lists, a counter and                                                                           # inbox data dictionary
                             sorted_dates = bubblesort(list_dates)  # sorts list of dates
 
                             num_files = len(sorted_dates) - 1  # number of files to be compared
@@ -351,17 +415,16 @@ def server():
                             email_list.clear()  # Clears email_list each time client calls "2" or "3"
 
                             # create_inbox() creates the returns the inbox string and updates the email_list
-                            inbox, email_list = create_inbox(inbox, inbox_dict, email_list, email_names, num_files,
-                                                             sorted_dates, folder)
+                            inbox, email_list = create_inbox(inbox, inbox_dict, email_list, email_names, num_files,sorted_dates, folder)
 
                             # if the client entered a 2 the inbox is sent to the client, 
                             # otherwise only the inbox dictionary and email_list is created/updated
-                            if command == "2":
-                                inbox_length = str(len(inbox))  # obtain size
-                                connectionSocket.send(encrypt_message(inbox_length, sym_key))  # send size
-                                ok_recv = connectionSocket.recv(2048)  # recieve OK
-                                connectionSocket.send(encrypt_message(inbox, sym_key))  # send inbox string
-
+                            
+                            inbox_length = str(len(inbox))  # obtain size
+                            connectionSocket.send(encrypt_message(inbox_length, sym_key))  # send size
+                            ok_recv = connectionSocket.recv(2048)  # recieve OK
+                            connectionSocket.send(encrypt_message(inbox, sym_key))  # send inbox string
+                            inbox_printed += 1 # increment to establish that inbox was printed once
                         # Sending over email contents
                         if command == "3":
                             index_request = "the server request email index\n"
@@ -370,22 +433,26 @@ def server():
                             email_index = connectionSocket.recv(2048)  # Recieve chosen index from client
                             email_index = decrypt_message(email_index, sym_key)
 
-                            print(email_list)
-                            temp = email_list[
-                                int(email_index) - 1]  # find chosen email title from email_list based on client chosen index-1
+                            while True:
+                                if int(email_index) < 0 or int(email_index) > len(email_list):
+                                    connectionSocket.send(encrypt_message("Index out of range. Please enter another index: ", sym_key))
+                                    email_index = connectionSocket.recv(2048)
+                                    email_index = decrypt_message(email_index, sym_key)
+                                else:
+                                    connectionSocket.send(encrypt_message("Ok", sym_key))
+                                    break
+                                
+                            temp = email_list[int(email_index) - 1]  # find chosen email title from email_list based on client chosen index-1
                             email_source = temp[:temp.find(":")]
                             email_title = temp[temp.find(":") + 1:]
 
-                            client_file_path = os.path.join(os.getcwd(), username,
-                                                            f"{email_source}_{email_title}.txt")  # Path to client chosen file
-                            print("with open")
+                            client_file_path = os.path.join(os.getcwd(), username,f"{email_source}_{email_title}.txt")  # Path to client chosen file
                             with open(client_file_path, "r") as file:
                                 chosen_email = file.read()
 
                             encrypted_chosen_email = encrypt_message(chosen_email, sym_key)
 
-                            connectionSocket.send(encrypt_message(len(encrypted_chosen_email),
-                                                                  sym_key))  # Send the length of our encrypted email to use on client side
+                            connectionSocket.send(encrypt_message(len(encrypted_chosen_email),sym_key))  # Send the length of our encrypted email to use on client side
 
                             ok = connectionSocket.recv(2048)
                             ok = decrypt_message(ok, sym_key)
@@ -395,9 +462,9 @@ def server():
                             while offset < len(encrypted_chosen_email):
                                 remaining = len(encrypted_chosen_email) - offset  # Remaining size of email
                                 chunk_size = min(4096,
-                                                 remaining)  # chunk_size is the minimum of the buffer(4096) or remaining(Size of remaining email)
+                                remaining)  # chunk_size is the minimum of the buffer(4096) or remaining(Size of remaining email)
                                 chunk = encrypted_chosen_email[
-                                        offset:offset + chunk_size]  # Takes characters from the offset to the offset and chunk_size
+                                offset:offset + chunk_size]  # Takes characters from the offset to the offset and chunk_size
                                 connectionSocket.send(chunk)
                                 offset += chunk_size  # Adds the chunk_size to offset
 
