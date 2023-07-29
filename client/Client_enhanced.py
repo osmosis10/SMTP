@@ -2,12 +2,14 @@
 import socket
 import sys
 import os
+import json
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
-from Crypto.Hash import SHA256
+from Crypto.Hash import SHA256, HMAC
 from Crypto.Signature import pss
+from Crypto.Util import Counter
 
 
 # Use this to generate a sym_key of size 32(256bits)
@@ -15,7 +17,24 @@ from Crypto.Signature import pss
 def generate_sym_key(size=32):
     return get_random_bytes(size)
 
+def generate_HMAC(data, sym_key):
+    try:
+        with open('server_public.pem', 'rb') as file:
+            server_pub = file.read()
+        with open('client1_private.pem', 'rb') as file:
+            client_priv = file.read()
+    except FileNotFoundError:
+        print("Error: Could not find 'server_public.pem'")
+    except IOError as e:
+        print(f"Error: Could not read 'server_public.pem': {e}")
+    except Exception as e:
+        print(f"Unexpected Error: {e}")
+    mac = HMAC.new(sym_key, data.encode(), digestmod=SHA256)
+    return mac
 
+def generate_nonce(length=16):
+    return get_random_bytes(length)
+    
 # Read in the public key as binary and save in a variable
 def import_public_key(username='john'):
     with open(f'{username}_public.pem', 'rb') as file:
@@ -44,6 +63,14 @@ def encrypt_message(message, sym_key):
     encrypted_message = cipher_message.encrypt(padded_message)
     return encrypted_message
 
+def encrypt_message_ctr(message,sym_key, nonce):
+    ctr = Counter.new(64, prefix=nonce, little_endian=True, allow_wraparound=True)
+    binary_message = str(message).encode('utf-8')
+    padded_message = pad(binary_message, 16)
+    cipher_message = AES.new(sym_key, AES.MODE_CTR, counter=ctr)
+    encrypted_message = cipher_message.encrypt(padded_message)
+    encrypted_payload = nonce + encrypted_message
+    return encrypted_payload
 
 # Use this to decrypt any messages that are need to be sent to the user
 # message is decrypted via AES using the sym_key
@@ -54,6 +81,15 @@ def decrypt_message(encrypted_message, sym_key):
     message = unpadded_message.decode('utf-8')
     return message
 
+def decrypt_message_ctr(encrypted_payload, sym_key, nonce):
+    nonce = encrypted_payload[:16]
+    encrypted_message = encrypted_payload[16:]
+    ctr = Counter.new(64, prefix=nonce, suffix=b'ABCD', little_endian=True, allow_wraparound=True)
+    cipher_message = AES.new(sym_key, AES.MODE_CTR, counter=ctr)
+    decrypted_message = cipher_message.decrypt(encrypted_message)
+    unpadded_message = unpad(decrypted_message, 16)
+    message = unpadded_message.decode('utf-8')
+    return message, nonce
 
 def file_length(file):
     with open(file, "r") as f:
@@ -119,7 +155,12 @@ def read_lines():
 
     while True:
         line = input()
+        
+def get_random_sequence():
+    return int.from_bytes(os.urandom(4), byteorder="big")
 
+def get_random_next():
+    return int.from_bytes(os.urandom(1), byteorder="big")
 
 def client():
     # Server Information
@@ -143,6 +184,11 @@ def client():
             sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
             command = "0"
+            
+            sequence_number = get_random_sequence()
+            increment = get_random_next()
+            clientSocket.send(encrypt_message(increment, sym_key))
+            inbox_printed = 0
             # Loops until the command is 4 (exit)
             while command != "4":
                 # Gets instructions from the server
@@ -163,8 +209,8 @@ def client():
                         print("Invalid input. Please enter at least one destination.")
                         dest = input("Enter destinations (separated by ;): ")
                     title = input("Enter title: ")
-                    while title.strip() == "":
-                        print("Invalid input. Do not leave empty.")
+                    while title.strip() == "" or "/" in title or "\\" in title:
+                        print("Invalid input or Empty input. Do not leave empty.")
                         title = input("Enter title: ")
                     load_file = input("Would you like to load contents from a file?(Y/N) ")
                     while load_file.upper() not in ("N", "Y"):
@@ -189,8 +235,7 @@ def client():
                         with open(content, 'r') as file:
                             content = file.read()
                             # print(content)
-                    elif (
-                            load_file.upper() == "N"):  # We don't have a limit check when the user inputs text, as we assume they will not go paste the terminal limit of 4095 characters
+                    elif (load_file.upper() == "N"):  # We don't have a limit check when the user inputs text, as we assume they will not go paste the terminal limit of 4095 characters
                         content = input("Enter message contents: ")
                         length = len(content)
                     email = f'\033[1mFrom:\033[0m {username}\n' \
@@ -199,8 +244,24 @@ def client():
                             f'\033[1m\033[1mTitle:\033[0m {title}\n' \
                             f'\033[1mContent Length:\033[0m {length}\n' \
                             f'\033[1mContent:\033[0m {content}\n'
+                            
+                    nonce = get_random_bytes(8)
+                    payload = {
+                        'message': email, 
+                        'seq': sequence_number,
+                    }
+                    
+                    json_data = json.dumps(payload)
+                    
+                    mac = generate_HMAC(json_data, sym_key)
+                    
+                    payload['mac'] = mac.hexdigest()
+                    
+                    json_mac_data = json.dumps(payload)
+
+                    
                     print("The message is sent to the server.")
-                    encrypted_email = encrypt_message(email, sym_key)
+                    encrypted_email = encrypt_message_ctr(json_mac_data, sym_key, nonce)
 
                     clientSocket.send(encrypt_message((str(len(encrypted_email))), sym_key))
                     ok = clientSocket.recv(2048)
@@ -209,15 +270,18 @@ def client():
                     # The code below sends our email from above in chunks to better handle large file sizes
                     while offset < len(encrypted_email):
                         remaining = len(encrypted_email) - offset  # Remaining size of email
-                        chunk_size = min(4096,
-                                         remaining)  # chunk_size is the minimum of the buffer(4096) or remaining(Size of remaining email)
-                        chunk = encrypted_email[
-                                offset:offset + chunk_size]  # Takes characters from the offset to the offset and chunk_size
+                        chunk_size = min(4096,remaining)  # chunk_size is the minimum of the buffer(4096) or remaining(Size of remaining email)
+                        chunk = encrypted_email[offset:offset + chunk_size]  # Takes characters from the offset to the offset and chunk_size
                         clientSocket.send(chunk)
                         offset += chunk_size  # Adds the chunk_size to offset
 
                     # clientSocket.send(encrypt_message(email, sym_key))
-                elif command == "2":
+                    
+                    valid_response = decrypt_message(clientSocket.recv(2048), sym_key)
+                    if valid_response != "Ok":
+                        print(valid_response)
+                    sequence_number += increment
+                if command == "2" or command == "3" and inbox_printed == 0:
                     # Recieving size
                     size = clientSocket.recv(2048)
                     size_decrypt = int(decrypt_message(size, sym_key))
@@ -235,24 +299,34 @@ def client():
                     inbox_decrypt = decrypt_message(inbox, sym_key)  # decrypt and decode
                     print(inbox_decrypt)
 
-                elif command == "3":
+                if command == "3":
                     index_request = clientSocket.recv(2048)
                     index_request = decrypt_message(index_request, sym_key)
-                    print(index_request)
 
                     index = input("Enter the email index you wish to view: ")
                     while index.strip() == "" or not index.isdigit():
                         print("Invalid input. Please enter an index from the options above.")
                         index = input("Enter the email index you wish to view: ")
                     clientSocket.send(encrypt_message(index, sym_key))
-                    print("index prompt")
+                    
+                    index_response = clientSocket.recv(2048)
+                    index_response = decrypt_message(index_response, sym_key)
+                    while index_response != "Ok":
+                        index = input(index_response)
+                        while index.strip() == "" or not index.isdigit():
+                            index = input(index_response)
+                        clientSocket.send(encrypt_message(index, sym_key))
+                        index_response = clientSocket.recv(2048)
+                        index_response = decrypt_message(index_response, sym_key)
+                        if index_response == "Ok":
+                            break
+                        
                     email_length = clientSocket.recv(2048)  # Length of server side encrypted email
                     email_length = decrypt_message(email_length, sym_key)
 
                     clientSocket.send(encrypt_message("ok", sym_key))
 
                     email = b''
-                    print(f"email_legnth: {email_length}")
                     # The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
                     while len(email) < int(email_length):
                         data = clientSocket.recv(4096)

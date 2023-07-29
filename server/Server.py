@@ -235,7 +235,7 @@ def server():
             connectionSocket, addr = serverSocket.accept()
             print(addr, '   ', connectionSocket)
             pid = os.fork()
-
+            accepted_clients = ["client1","client2","client3","client4","client5"]
             # If it is a client process
             if pid == 0:
                 serverSocket.close()
@@ -246,10 +246,8 @@ def server():
                     sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
                     command = "0"
-                    seq = None
                     inbox_printed = 0 # num of times inbox has been generated
                     # Loops until the command is 4 (exit)
-                    increment = int(decrypt_message(connectionSocket.recv(2048), sym_key))
                     while command != "4":
                         # Creates and sends the instructions
                         instructions = \
@@ -259,17 +257,12 @@ def server():
                             "3) Display the Email Contents\n    " \
                             "4) Terminate the Connection".encode('ascii')
                         encrypted = sym_cipher.encrypt(pad(instructions, 16))
-                        print("HERE1")
                         connectionSocket.send(encrypted)
-                        print("HERE2")
                         # Gets command from client
                         encrypted = connectionSocket.recv(2048)
-                        print("HERE3")
                         command = unpad(sym_cipher.decrypt(encrypted), 16).decode("ascii")
-                        print("HERE4")
                         # Sending email
                         if command == "1":
-                            print(seq)
                             message = "Send this email\n"
                             connectionSocket.send(encrypt_message(message, sym_key))
                             
@@ -277,26 +270,14 @@ def server():
                             email_length = int(decrypt_message(email_length, sym_key))
                             connectionSocket.send(encrypt_message("Ok", sym_key))
                                     
-                            json_data = b''
+                            email_data = b''
                             #The while loop below receives our email in chunks until the length of the email variable is the same as the email_length
-                            while len(json_data) < email_length:
+                            while len(email_data) < email_length:
                                 data = connectionSocket.recv(4096)
-                                json_data += data
-                            json_data = decrypt_message(json_data, sym_key)
-                            json_data = json.loads(json_data)
-                            
-                            email = json_data['message']
-                            sequence_number = json_data['seq']
-                            
-                            if seq == None:
-                                seq = sequence_number + increment
-                            else:
-                                if seq == sequence_number:
-                                    #seq += sequence_number + increment use this to test the else statement
-                                    seq += increment
-                                else:
-                                    continue
-                                
+                                email_data += data
+                            email = decrypt_message(email_data, sym_key)
+ 
+   
                             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
   
                             email = email.replace("\033[1mTime and Date:\033[0m", f"\033[1mTime and Date:\033[0m {current_time}")
@@ -305,14 +286,31 @@ def server():
                             dest = splice_word(email, "To")
                             dest_list = dest.split(";")
                             length = splice_word(email, "Length")
-                             
+                            
+                            invalid_clients = []
+                            valid_clients = []
+                            for item in dest_list:
+                                if item not in accepted_clients:
+                                    #connectionSocket.send(f"Email not sent to {item}. Invalid recipient.")
+                                    invalid_clients.append(item)
+                                else:
+                                    valid_clients.append(item)
+                            if len(invalid_clients) != 0:
+                                delimited_string = ", ".join(invalid_clients)
+                                invalid_clients = "Email was not sent to " + delimited_string + ". Invalid recipient(s)"
+                                connectionSocket.send(encrypt_message(invalid_clients, sym_key))
+                            else:
+                                connectionSocket.send(encrypt_message("Ok", sym_key))
+                            
+                            dest = ";".join(valid_clients)
+                            
                             print(f"An email from {client} is sent to {dest} has content length of {length}")
                             title = splice_word(email, "Title")
                             #file_path = os.path.join(current_path, f'{dest_list[i]}', f'{client}_{title}.txt')    
                             current_path = os.getcwd()
                             index = 1
-                            for i in range(len(dest_list)):
-                                new_path = os.path.join(current_path, f'{dest_list[i]}')    
+                            for i in range(len(valid_clients)):
+                                new_path = os.path.join(current_path, f'{valid_clients[i]}')    
                                 if not os.path.exists(new_path):
                                     os.makedirs(new_path)
                                 client_file_path = os.path.join(new_path, f'{client}_{title}.txt')
