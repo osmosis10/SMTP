@@ -337,7 +337,7 @@ def server():
                             sorted_dates = bubblesort(list_dates) # sorts list of dates
 
                             num_files = len(sorted_dates)-1  # number of files to be compared
-                            inbox = "\nIndex   From\t\tDateTime\t\t\t\t\t   Title\n"
+                            inbox = "Index   From        DateTime                       Title\n"
                             email_list.clear() #Clears email_list each time client calls "2" or "3"
                             
                             # create_inbox() creates the returns the inbox string and updates the email_list
