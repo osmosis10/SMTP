@@ -150,8 +150,13 @@ def client():
                         print("Invalid input. Please enter at least one destination.")
                         dest = input("Enter destinations (separated by ;): ")
                     title = input("Enter title: ")
-                    while title.strip() == ""or "/" in title or "\\" in title:
-                        print("Invalid input. Do not leave empty.")
+                    while title.strip() == "" or "/" in title or "\\" in title or len(title) > 100:
+                        if title.strip() == "":
+                            print("Invalid input. Do not leave empty.")
+                        elif "/" in title or "\\" in title:
+                            print("Invalid input: '/' or '\\")
+                        elif len(title) > 100:
+                            print("Invalid input. Max of 100 characters.")
                         title = input("Enter title: ")
                     load_file = input("Would you like to load contents from a file?(Y/N) " )
                     while load_file.upper() not in ("N", "Y"):

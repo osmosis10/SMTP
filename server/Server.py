@@ -263,6 +263,7 @@ def server():
                         command = unpad(sym_cipher.decrypt(encrypted), 16).decode("ascii")
                         # Sending email
                         if command == "1":
+                            current_path = os.getcwd()
                             message = "Send this email\n"
                             connectionSocket.send(encrypt_message(message, sym_key))
                             
@@ -286,7 +287,8 @@ def server():
                             dest = splice_word(email, "To")
                             dest_list = dest.split(";")
                             length = splice_word(email, "Length")
-                            
+                            title = splice_word(email, "Title")
+                  
                             invalid_clients = []
                             valid_clients = []
                             for item in dest_list:
@@ -305,9 +307,8 @@ def server():
                             dest = ";".join(valid_clients)
                             
                             print(f"An email from {client} is sent to {dest} has content length of {length}")
-                            title = splice_word(email, "Title")
                             #file_path = os.path.join(current_path, f'{dest_list[i]}', f'{client}_{title}.txt')    
-                            current_path = os.getcwd()
+                            
                             index = 1
                             for i in range(len(valid_clients)):
                                 new_path = os.path.join(current_path, f'{valid_clients[i]}')    
@@ -320,6 +321,8 @@ def server():
                                     while os.path.exists(os.path.join(new_path, f'{client}_{title}({index}).txt')):
                                         index += 1
                                     with open(os.path.join(new_path, f'{client}_{title}({str(index)}).txt'), "w") as file:
+                                        new_title = title + f"({str(index)})"
+                                        email = email.replace(f"\033[1m\033[1mTitle:\033[0m {title}\n", f"\033[1m\033[1mTitle:\033[0m {new_title}\n")
                                         file.write(email)
                                     break
                                 else:

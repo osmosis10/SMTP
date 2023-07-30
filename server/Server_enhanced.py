@@ -86,7 +86,7 @@ def validate_mac(message, mac, sym_key):
         h.hexverify(mac)
         return "Valid Message"
     except ValueError:
-        return "Invalid message"
+        return "Invalid Message"
     
 
 # Gives you a string representation of the encrypted sym key
@@ -297,6 +297,7 @@ def server():
 
                     command = "0"
                     seq = None
+                    nonce_set = set()
                     inbox_printed = 0 # num of times inbox has been generated
                     # Loops until the command is 4 (exit)
                     increment = int(decrypt_message(connectionSocket.recv(2048), sym_key))
@@ -330,6 +331,14 @@ def server():
                                 data = connectionSocket.recv(4096)
                                 json_data += data
                             nonce = json_data[:8]
+                            if nonce in nonce_set:
+                                nonce_response = "Repeated Nonce. Rejecting Message."
+                                connectionSocket.send(encrypt_message(nonce_response, sym_key))
+                                continue
+                            else:
+                                connectionSocket.send(encrypt_message("OK", sym_key))
+                                nonce_set.add(nonce)
+                                
                             email_data = json_data[8:]
                             email_data = decrypt_message_ctr(email_data, sym_key, nonce)
                             email_data = json.loads(email_data)
@@ -337,11 +346,20 @@ def server():
                             if 'mac' in email_data:
                                 del email_data['mac']
                             email_data = json.dumps(email_data)
-                            print(validate_mac(email_data, mac, sym_key))
+                            
+                            if validate_mac(email_data, mac, sym_key) == "Invalid Message":
+                                mac_response = "Invalid MAC: Rejcting Message."
+                                connectionSocket.send(encrypt_message(mac_response, sym_key))
+                                continue
+                            else:
+                                connectionSocket.send(encrypt_message("Ok",sym_key))
+                                
+                            #print(validate_mac(email_data, mac, sym_key))
                             
                             email_data = json.loads(email_data)
                             email = email_data['message']
                             sequence_number = email_data['seq']
+                            
                             
                             if seq == None:
                                 seq = sequence_number + increment

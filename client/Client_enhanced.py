@@ -275,7 +275,16 @@ def client():
                         clientSocket.send(chunk)
                         offset += chunk_size  # Adds the chunk_size to offset
 
+                    nonce_response = decrypt_message(clientSocket.recv(2048), sym_key)
+                    if nonce_response != "Ok":
+                        print(nonce_response)
+                        continue
                     # clientSocket.send(encrypt_message(email, sym_key))
+                    
+                    mac_response = decrypt_message(clientSocket.recv(2048), sym_key)
+                    if mac_response != "Ok":
+                        print(mac_response)
+                        continue
                     
                     valid_response = decrypt_message(clientSocket.recv(2048), sym_key)
                     if valid_response != "Ok":
