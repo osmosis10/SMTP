@@ -343,7 +343,7 @@ def server():
                             if not os.path.exists(new_path):
                                     os.makedirs(new_path)
                     
-                            inbox = "\nIndex   From\t\tDateTime\t\t\t\t\t   Title\n"
+                            inbox = "Index   From        DateTime                       Title\n"
                             folder = username # folder for client
                             filelist = os.listdir(folder) # list of files in folder
 
