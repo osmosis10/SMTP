@@ -486,7 +486,7 @@ def server():
                             ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             
                             while True:
-                                if int(email_index) < 0 or int(email_index) > len(email_list):
+                                if int(email_index) <= 0 or int(email_index) > len(email_list):
                                     connectionSocket.send(encrypt_message("Index out of range. Please enter another index: ", sym_key))
                                     email_index = connectionSocket.recv(2048)
                                     email_index = decrypt_message(email_index, sym_key)
