@@ -239,7 +239,6 @@ def server():
         try:
             # Server accepts client connection
             connectionSocket, addr = serverSocket.accept()
-            print(addr, '   ', connectionSocket)
             pid = os.fork()
             accepted_clients = ["client1","client2","client3","client4","client5"]
             # If it is a client process
@@ -344,7 +343,7 @@ def server():
                             if not os.path.exists(new_path):
                                     os.makedirs(new_path)
                     
-                            inbox = "\nIndex   From\t\tDateTime\t\t\t\t\t   Title\n"
+                            inbox = "Index   From        DateTime                       Title\n"
                             folder = username # folder for client
                             filelist = os.listdir(folder) # list of files in folder
 
