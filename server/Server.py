@@ -249,6 +249,8 @@ def server():
 
                     command = "0"
                     inbox_printed = 0 # num of times inbox has been generated
+                    inbox_empty = False
+
                     # Loops until the command is 4 (exit)
                     while command != "4":
                         # Creates and sends the instructions
@@ -279,7 +281,6 @@ def server():
                                 email_data += data
                             email = decrypt_message(email_data, sym_key)
  
-   
                             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
   
                             email = email.replace("\033[1mTime and Date:\033[0m", f"\033[1mTime and Date:\033[0m {current_time}")
@@ -331,21 +332,30 @@ def server():
                         # This protocol will generate a dictionary for email data for either 
                         # protocol's 2 or 3 but only sends over the inbox if the user chooses protocol 2
                         if command == "2" or command == "3" and inbox_printed == 0:
+                            current_path = os.getcwd()
+                            new_path = os.path.join(current_path, f'{username}')    
+                            if not os.path.exists(new_path):
+                                    os.makedirs(new_path)
+                    
+                            inbox = "\nIndex   From\t\tDateTime\t\t\t\t\t   Title\n"
                             folder = username # folder for client
                             filelist = os.listdir(folder) # list of files in folder
-                            list_dates, email_names, num_files, inbox_dict = inbox_data(filelist, folder) # function returns relevant lists, a counter and                                                                           # inbox data dictionary
-                            sorted_dates = bubblesort(list_dates) # sorts list of dates
 
-                            num_files = len(sorted_dates)-1  # number of files to be compared
-                            inbox = "Index   From        DateTime                       Title\n"
-                            email_list.clear() #Clears email_list each time client calls "2" or "3"
+
+                            # The inbox is only generated if there is a least one email
+                            # in the client's folder
+                            if len(filelist) > 0:
+                                list_dates, email_names, num_files, inbox_dict = inbox_data(filelist, folder) # function returns relevant lists, a counter and                                                                           # inbox data dictionary
+                                sorted_dates = bubblesort(list_dates) # sorts list of dates
+                                num_files = len(sorted_dates)-1  # number of files to be compared
+                                email_list.clear() #Clears email_list each time client calls "2" or "3"
+
+                                # create_inbox() creates the returns the inbox string and updates the email_list
+                                inbox, email_list = create_inbox(inbox, inbox_dict, email_list, email_names, num_files, sorted_dates, folder)
                             
-                            # create_inbox() creates the returns the inbox string and updates the email_list
-                            inbox, email_list = create_inbox(inbox, inbox_dict, email_list, email_names, num_files, sorted_dates, folder)
-                            
-                            # if the client entered a 2 the inbox is sent to the client, 
-                            # otherwise only the inbox dictionary and email_list is created/updated
-                            
+                                # if the client entered a 2 the inbox is sent to the client, 
+                                # otherwise only the inbox dictionary and email_list is created/updated
+          
                             inbox_length = str(len(inbox)) #obtain size
                             connectionSocket.send(encrypt_message(inbox_length, sym_key)) # send size
                             ok_recv = connectionSocket.recv(2048) # recieve OK
@@ -368,13 +378,13 @@ def server():
                                     connectionSocket.send(encrypt_message("Ok", sym_key))
                                     break
                             
-                            print(email_list)
+                          
                             temp = email_list[int(email_index)-1] #find chosen email title from email_list based on client chosen index-1
                             email_source =  temp[:temp.find(":")]
                             email_title = temp[temp.find(":")+1:]
                             
                             client_file_path = os.path.join(os.getcwd(), username, f"{email_source}_{email_title}.txt") #Path to client chosen file
-                            print("with open")
+                            
                             with open(client_file_path, "r") as file:
                                 chosen_email = file.read()
                             

@@ -215,8 +215,6 @@ def client():
                     size_decrypt = int(decrypt_message(size, sym_key))
                     clientSocket.send(encrypt_message("OK", sym_key)) # Send ok
                     
-                    
-                    
                     num_bytes = 0  # var for bytes length
                     inbox = b"" # var for bytes
                     
