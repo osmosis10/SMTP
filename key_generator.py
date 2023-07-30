@@ -1,3 +1,5 @@
+# This is the RSA key generator functions for the SMTP program
+# Conlan Myers - 3110785
 
 from Crypto.PublicKey import RSA
 
@@ -6,10 +8,6 @@ def generate_keys():
     private_key = RSA.generate(2048)
     public_key = private_key.public_key()
     return private_key, public_key
-
-
-
-
 
 # You can use this to print out the public and private keys
 # The commented out parts will print out the modulus and exponent
