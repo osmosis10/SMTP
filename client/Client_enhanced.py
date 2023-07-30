@@ -297,20 +297,21 @@ def client():
                     # Recieving size
                     size = clientSocket.recv(2048)
                     size_decrypt = int(decrypt_message(size, sym_key))
-                    clientSocket.send(encrypt_message("OK", sym_key))  # Send ok
-
+                    clientSocket.send(encrypt_message("OK", sym_key)) # Send ok
+                    
                     num_bytes = 0  # var for bytes length
-                    inbox = b""  # var for bytes
-
+                    inbox = b"" # var for bytes
+                    
                     while num_bytes < size_decrypt:
-                        chunk = clientSocket.recv(2048)  # chunks to be recieved
-
-                        inbox += chunk  # total message being added to
-                        num_bytes += len(inbox)  # total # of bytes recieved
-
-                    inbox_decrypt = decrypt_message(inbox, sym_key)  # decrypt and decode
+                        chunk = clientSocket.recv(2048) # chunks to be recieved
+                        
+                        inbox += chunk # total message being added to
+                        num_bytes += len(inbox) # total # of bytes recieved
+                    
+                    inbox_decrypt = decrypt_message(inbox, sym_key) # decrypt and decode
                     print(inbox_decrypt)
-
+                    inbox_printed += 1
+                    
                 if command == "3":
                     index_request = clientSocket.recv(2048)
                     index_request = decrypt_message(index_request, sym_key)
@@ -321,9 +322,10 @@ def client():
                         index = input("Enter the email index you wish to view: ")
                     clientSocket.send(encrypt_message(index, sym_key))
                     
-                    missing_folder_response = decrypt_message(clientSocket.recv(2048))
-                    if missing_folder_response != "Ok":
-                        print(missing_folder_response)
+                    empty_folder_reponse = decrypt_message(clientSocket.recv(2048), sym_key)
+                    if empty_folder_reponse != "Ok":
+                        print(empty_folder_reponse)
+                        clientSocket.send(encrypt_message("Ok", sym_key))
                         continue
                     
                     index_response = clientSocket.recv(2048)
@@ -350,6 +352,7 @@ def client():
                         email += data
 
                     print(decrypt_message(email, sym_key))
+                    clientSocket.send(encrypt_message("Ok", sym_key))
 
         # Client terminate connection with the server
         clientSocket.close()

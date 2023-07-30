@@ -72,6 +72,10 @@ def splice_word(string, target):
     
     return string[middle2+1:end].strip()
 
+def empty_folder_check(path):
+    files = glob.glob(path + "/*")
+    return not bool(files)
+
 def initial_connection_protocol(connectionSocket):
     # This is the server client communication protocol for when the initial connection
 
@@ -372,6 +376,14 @@ def server():
                             email_index = connectionSocket.recv(2048) #Recieve chosen index from client
                             email_index = decrypt_message(email_index, sym_key) 
                             
+                            if empty_folder_check(username):
+                                empty_folder_reponse = "Your inbox is currently empty.\n"
+                                connectionSocket.send(encrypt_message(empty_folder_reponse,sym_key))
+                                ok = decrypt_message(connectionSocket.recv(2048), sym_key)
+                                continue
+                            else:
+                                connectionSocket.send(encrypt_message("Ok",sym_key))
+                            
                             while True:
                                 if int(email_index) < 0 or int(email_index) > len(email_list):
                                     connectionSocket.send(encrypt_message("Index out of range. Please enter another index: ", sym_key))
@@ -406,6 +418,8 @@ def server():
                                 chunk = encrypted_chosen_email[offset:offset + chunk_size] #Takes characters from the offset to the offset and chunk_size
                                 connectionSocket.send(chunk)
                                 offset += chunk_size #Adds the chunk_size to offset
+                                
+                            ok = decrypt_message(connectionSocket.recv(2048), sym_key)
 
 
                 connectionSocket.close()

@@ -175,6 +175,9 @@ def initial_connection_protocol(connectionSocket):
 def substring(string, delimiter):
     return string.partition(delimiter)[2]
 
+def empty_folder_check(path):
+    files = glob.glob(path + "/*")
+    return not bool(files)
 
 # Bubble sort for dates
 def bubblesort(elements):
@@ -423,25 +426,34 @@ def server():
                         # This protocol will generate a dictionary for email data for either 
                         # protocol's 2 or 3 but only sends over the inbox if the user chooses protocol 2
                         if command == "2" or command == "3" and inbox_printed == 0:
-                            folder = username  # folder for client
-                            filelist = os.listdir(folder)  # list of files in folder
-                            list_dates, email_names, num_files, inbox_dict = inbox_data(filelist,folder)  # function returns relevant lists, a counter and                                                                           # inbox data dictionary
-                            sorted_dates = bubblesort(list_dates)  # sorts list of dates
+                            current_path = os.getcwd()
+                            new_path = os.path.join(current_path, f'{username}')    
+                            if not os.path.exists(new_path):
+                                    os.makedirs(new_path)
+                    
+                            inbox = "\nIndex   From\t\tDateTime\t\t\t\t\t   Title\n"
+                            folder = username # folder for client
+                            filelist = os.listdir(folder) # list of files in folder
 
-                            num_files = len(sorted_dates) - 1  # number of files to be compared
-                            inbox = "Index   From        DateTime                       Title\n"
-                            email_list.clear()  # Clears email_list each time client calls "2" or "3"
 
-                            # create_inbox() creates the returns the inbox string and updates the email_list
-                            inbox, email_list = create_inbox(inbox, inbox_dict, email_list, email_names, num_files,sorted_dates, folder)
+                            # The inbox is only generated if there is a least one email
+                            # in the client's folder
+                            if len(filelist) > 0:
+                                list_dates, email_names, num_files, inbox_dict = inbox_data(filelist, folder) # function returns relevant lists, a counter and                                                                           # inbox data dictionary
+                                sorted_dates = bubblesort(list_dates) # sorts list of dates
+                                num_files = len(sorted_dates)-1  # number of files to be compared
+                                email_list.clear() #Clears email_list each time client calls "2" or "3"
 
-                            # if the client entered a 2 the inbox is sent to the client, 
-                            # otherwise only the inbox dictionary and email_list is created/updated
+                                # create_inbox() creates the returns the inbox string and updates the email_list
+                                inbox, email_list = create_inbox(inbox, inbox_dict, email_list, email_names, num_files, sorted_dates, folder)
                             
-                            inbox_length = str(len(inbox))  # obtain size
-                            connectionSocket.send(encrypt_message(inbox_length, sym_key))  # send size
-                            ok_recv = connectionSocket.recv(2048)  # recieve OK
-                            connectionSocket.send(encrypt_message(inbox, sym_key))  # send inbox string
+                                # if the client entered a 2 the inbox is sent to the client, 
+                                # otherwise only the inbox dictionary and email_list is created/updated
+          
+                            inbox_length = str(len(inbox)) #obtain size
+                            connectionSocket.send(encrypt_message(inbox_length, sym_key)) # send size
+                            ok_recv = connectionSocket.recv(2048) # recieve OK
+                            connectionSocket.send(encrypt_message(inbox, sym_key)) # send inbox string
                             inbox_printed += 1 # increment to establish that inbox was printed once
                         # Sending over email contents
                         if command == "3":
@@ -451,9 +463,10 @@ def server():
                             email_index = connectionSocket.recv(2048)  # Recieve chosen index from client
                             email_index = decrypt_message(email_index, sym_key)
 
-                            if not os.path.exists(username):
-                                missing_folder_response = "Your inbox is currently empty."
-                                connectionSocket.send(encrypt_message(missing_folder_response,sym_key))
+                            if empty_folder_check(username):
+                                empty_folder_reponse = "Your inbox is currently empty.\n"
+                                connectionSocket.send(encrypt_message(empty_folder_reponse,sym_key))
+                                ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                                 continue
                             else:
                                 connectionSocket.send(encrypt_message("Ok",sym_key))
@@ -492,6 +505,7 @@ def server():
                                 offset:offset + chunk_size]  # Takes characters from the offset to the offset and chunk_size
                                 connectionSocket.send(chunk)
                                 offset += chunk_size  # Adds the chunk_size to offset
+                            ok = decrypt_message(connectionSocket.recv(2048), sym_key)
 
                 connectionSocket.close()
                 print(f"Terminating connection with {username}")
