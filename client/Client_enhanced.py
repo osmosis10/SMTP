@@ -106,7 +106,7 @@ def file_generator(path, num_characters):
         for i in range(num_characters):
             file.write(chr(65 + (i % 26)))
 
-def test_nonce(clientSocket):
+def t_nonce(clientSocket):
     sym_key = get_random_bytes(32)
     nonce = get_random_bytes(8)
     m1 = "Test Message 1"
