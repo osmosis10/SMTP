@@ -1,5 +1,7 @@
-# This is an example from "Computer Networking: A Top Down Approach" textbook chapter 2
-# You can try this with nc localhost 12000 Test
+# This is the server side of the SMTP program
+# Conlan Myers - 3110785
+# ADD other names here
+#
 import json
 import socket
 import sys, glob, datetime
@@ -338,7 +340,7 @@ def server():
                             sorted_dates = bubblesort(list_dates) # sorts list of dates
 
                             num_files = len(sorted_dates)-1  # number of files to be compared
-                            inbox = "\nIndex   From\t\tDateTime\t\t\t\t\t   Title\n"
+                            inbox = "Index   From        DateTime                       Title\n"
                             email_list.clear() #Clears email_list each time client calls "2" or "3"
                             
                             # create_inbox() creates the returns the inbox string and updates the email_list
