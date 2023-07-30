@@ -123,7 +123,7 @@ def initial_connection_protocol(connectionSocket):
         # Sends denied connection in the clear
         connectionSocket.send("Invalid Username or Password".encode('ascii'))
         print(f"The received Client Information: {username} is invalid (Connection Terminated)")
-        return False, None
+        return False, None, username
 
 
 
