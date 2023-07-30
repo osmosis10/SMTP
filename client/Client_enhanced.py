@@ -5,6 +5,7 @@ import socket
 import sys
 import os
 import json
+from datetime import datetime
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes
@@ -12,7 +13,7 @@ from Crypto.Util.Padding import pad, unpad
 from Crypto.Hash import SHA256, HMAC
 from Crypto.Signature import pss
 from Crypto.Util import Counter
-
+import time
 
 # Use this to generate a sym_key of size 32(256bits)
 # Can change size to change the size of the key
@@ -67,7 +68,6 @@ def encrypt_message(message, sym_key):
 
 def encrypt_message_ctr(message,sym_key, nonce):
     ctr = Counter.new(64, prefix=nonce, little_endian=True, allow_wraparound=True)
-    print(ctr, "CTR: Client Side")
     binary_message = str(message).encode('utf-8')
     padded_message = pad(binary_message, 16)
     cipher_message = AES.new(sym_key, AES.MODE_CTR, counter=ctr)
@@ -106,6 +106,19 @@ def file_generator(path, num_characters):
         for i in range(num_characters):
             file.write(chr(65 + (i % 26)))
 
+def test_nonce(clientSocket):
+    sym_key = get_random_bytes(32)
+    nonce = get_random_bytes(8)
+    m1 = "Test Message 1"
+    m2 = "Test Message 2"
+    
+    clientSocket.send(encrypt_message_ctr(m1, sym_key, nonce))
+    nonce_response = decrypt_message(clientSocket.recv(2048), sym_key)
+    print(nonce_response)
+    
+    clientSocket.send(encrypt_message_ctr(m2, sym_key, nonce))
+    nonce_response = decrypt_message(clientSocket.recv(2048), sym_key)
+    print(nonce_response)
 
 def initial_connection_protocol(clientSocket):
     # This is the server client communication protocol for when the initial connection
@@ -165,6 +178,8 @@ def get_random_sequence():
 
 def get_random_next():
     return int.from_bytes(os.urandom(1), byteorder="big")
+
+#nonce = get_random_bytes(8)
 
 def client():
     # Server Information
@@ -250,16 +265,21 @@ def client():
                             f'\033[1mContent:\033[0m {content}\n'
                             
                     nonce = get_random_bytes(8)
-                    print(nonce, "Nonce: Client Side")
+                    print(nonce.hex(), "Nonce: Client Side")
+
+                    current = datetime.now()
+                    timestamp = int(current.timestamp())
                     payload = {
-                        'message': email, 
-                        'seq': sequence_number,
+                        'message': email,
+                        'timestamp': timestamp
                     }
-                    
+
                     json_data = json.dumps(payload)
                     
+                    #attacker_sym_key = get_random_bytes(32)
+                    #mac = generate_HMAC(json_data, attacker_sym_key)
                     mac = generate_HMAC(json_data, sym_key)
-                    print(mac, "MAC: Client Side")
+                    print(mac.hexdigest(), "MAC: Client Side")
                     payload['mac'] = mac.hexdigest()
                     
                     json_mac_data = json.dumps(payload)
@@ -284,17 +304,25 @@ def client():
                     if nonce_response != "Ok":
                         print(nonce_response)
                         continue
-                    # clientSocket.send(encrypt_message(email, sym_key))
                     clientSocket.send(encrypt_message("Ok", sym_key))
+                    
                     mac_response = decrypt_message(clientSocket.recv(2048), sym_key)
                     if mac_response != "Ok":
                         print(mac_response)
                         continue
                     clientSocket.send(encrypt_message("Ok", sym_key))
+                    
+                    timestamp_response = decrypt_message(clientSocket.recv(2048), sym_key)
+                    if timestamp_response != "Ok":
+                        print(timestamp_response)
+                        continue
+                    clientSocket.send(encrypt_message("Ok", sym_key))
+                    
                     valid_response = decrypt_message(clientSocket.recv(2048), sym_key)
                     if valid_response != "Ok":
                         print(valid_response)
                     clientSocket.send(encrypt_message("Ok", sym_key))
+                    
                     sequence_number += increment
                 if command == "2" or command == "3" and inbox_printed == 0:
                     # Recieving size
@@ -330,7 +358,7 @@ def client():
                         print(empty_folder_reponse)
                         clientSocket.send(encrypt_message("Ok", sym_key))
                         continue
-                    
+                    clientSocket.send(encrypt_message("Ok", sym_key))
                     index_response = clientSocket.recv(2048)
                     index_response = decrypt_message(index_response, sym_key)
                     while index_response != "Ok":
@@ -342,7 +370,7 @@ def client():
                         index_response = decrypt_message(index_response, sym_key)
                         if index_response == "Ok":
                             break
-                        
+                    clientSocket.send(encrypt_message("Ok", sym_key))    
                     email_length = clientSocket.recv(2048)  # Length of server side encrypted email
                     email_length = decrypt_message(email_length, sym_key)
 

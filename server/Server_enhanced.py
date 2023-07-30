@@ -6,7 +6,7 @@ import json
 import socket
 import sys, glob, datetime
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes
@@ -84,6 +84,7 @@ def validate_mac(message, mac, sym_key):
     with open("client1_public.pem", "rb") as file:
         client_pub = file.read()
     h = HMAC.new(sym_key, message.encode(), digestmod=SHA256)
+    print(h.hexdigest(), "MAC: Server Side")
     try:
         h.hexverify(mac)
         return "Valid Message"
@@ -107,6 +108,22 @@ def splice_word(string, target):
 
     return string[middle2 + 1:end].strip()
 
+
+def valid_timestamp(timestamp, valid_time=5):
+    current = datetime.now()
+    print(current)
+    timestamp_datetime = datetime.fromtimestamp(timestamp)
+    print(timestamp_datetime)
+    diff = current - timestamp_datetime
+    print(diff)
+    if diff <= timedelta(seconds=valid_time):
+        return True
+    else:
+        return False
+    
+    
+
+    
 
 def initial_connection_protocol(connectionSocket):
     # This is the server client communication protocol for when the initial connection
@@ -303,7 +320,7 @@ def server():
                     sym_cipher = AES.new(sym_key, AES.MODE_ECB)
 
                     command = "0"
-                    seq = None
+                    #seq = None
                     nonce_set = set()
                     inbox_printed = 0 # num of times inbox has been generated
                     # Loops until the command is 4 (exit)
@@ -338,6 +355,7 @@ def server():
                                 data = connectionSocket.recv(4096)
                                 json_data += data
                             nonce = json_data[:8]
+                            print(nonce.hex(), "Nonce: Server Side")
                             if nonce in nonce_set:
                                 nonce_response = "Repeated Nonce. Rejecting Message."
                                 connectionSocket.send(encrypt_message(nonce_response, sym_key))
@@ -345,8 +363,8 @@ def server():
                             else:
                                 connectionSocket.send(encrypt_message("Ok", sym_key))
                                 nonce_set.add(nonce)
-                            
                             ok = decrypt_message(connectionSocket.recv(2048), sym_key)
+                            
                             email_data = json_data[8:]
                             email_data = decrypt_message_ctr(email_data, sym_key, nonce)
                             email_data = json.loads(email_data)
@@ -360,36 +378,29 @@ def server():
                                 connectionSocket.send(encrypt_message(mac_response, sym_key))
                                 continue
                             else:
-                                connectionSocket.send(encrypt_message("Ok",sym_key))
-                                
+                                connectionSocket.send(encrypt_message("Ok",sym_key))    
                             ok = decrypt_message(connectionSocket.recv(2048), sym_key)
-                            #print(validate_mac(email_data, mac, sym_key))
-                            
+
                             email_data = json.loads(email_data)
                             email = email_data['message']
-                            sequence_number = email_data['seq']
-                            
-                            
-                            if seq == None:
-                                seq = sequence_number + increment
-                            else:
-                                if seq == sequence_number:
-                                    #seq += sequence_number + increment #use this to test the else statement
-                                    seq += increment
-                                else:
-                                    continue
                             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-                            #email = decrypt_message(email, sym_key)
                             email = email.replace("\033[1mTime and Date:\033[0m",f"\033[1mTime and Date:\033[0m {current_time}")
                             client = splice_word(email, "From")
                             dest = splice_word(email, "To")
                             dest_list = dest.split(";")
                             length = splice_word(email, "Length")
+                            if valid_timestamp(email_data['timestamp'], 5) == False:
+                                timestamp_response = "Timestamp outdated. Please resubmit your request."
+                                connectionSocket.send(encrypt_message(timestamp_response, sym_key))
+                                continue
+                            else:
+                                connectionSocket.send(encrypt_message("Ok",sym_key))    
+                            ok = decrypt_message(connectionSocket.recv(2048), sym_key)
+                            
                             invalid_clients = []
                             valid_clients = []
                             for item in dest_list:
                                 if item not in accepted_clients:
-                                    #connectionSocket.send(f"Email not sent to {item}. Invalid recipient.")
                                     invalid_clients.append(item)
                                 else:
                                     valid_clients.append(item)
@@ -399,8 +410,8 @@ def server():
                                 connectionSocket.send(encrypt_message(invalid_clients, sym_key))
                             else:
                                 connectionSocket.send(encrypt_message("Ok", sym_key))
-                                
                             ok = decrypt_message(connectionSocket.recv(2048), sym_key)
+                            
                             dest = ";".join(valid_clients)
 
                             print(f"An email from {client} is sent to {dest} has content length of {length}")
@@ -473,6 +484,7 @@ def server():
                                 continue
                             else:
                                 connectionSocket.send(encrypt_message("Ok",sym_key))
+                            ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             
                             while True:
                                 if int(email_index) < 0 or int(email_index) > len(email_list):
@@ -482,7 +494,7 @@ def server():
                                 else:
                                     connectionSocket.send(encrypt_message("Ok", sym_key))
                                     break
-                                
+                            ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             temp = email_list[int(email_index) - 1]  # find chosen email title from email_list based on client chosen index-1
                             email_source = temp[:temp.find(":")]
                             email_title = temp[temp.find(":") + 1:]
