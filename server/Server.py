@@ -421,9 +421,12 @@ def server():
                             ok = decrypt_message(connectionSocket.recv(2048), sym_key)
 
 
+                else:
+                    # This prevents a duplicate print to the server
+                    connectionSocket.close()
+                    return
                 connectionSocket.close()
                 print(f"Terminating connection with {username}")
-
                 return
 
             # Parent doesn't need this connection
