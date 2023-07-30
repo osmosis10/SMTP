@@ -1,7 +1,8 @@
 # This is the server side of the SMTP program
 # Conlan Myers - 3110785
-# ADD other names here
-#
+# Moses Lemma - 3108513
+# Rajiv Naidu - 3060912
+
 import json
 import socket
 import sys, glob, datetime
