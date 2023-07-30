@@ -321,6 +321,11 @@ def client():
                         index = input("Enter the email index you wish to view: ")
                     clientSocket.send(encrypt_message(index, sym_key))
                     
+                    missing_folder_response = decrypt_message(clientSocket.recv(2048))
+                    if missing_folder_response != "Ok":
+                        print(missing_folder_response)
+                        continue
+                    
                     index_response = clientSocket.recv(2048)
                     index_response = decrypt_message(index_response, sym_key)
                     while index_response != "Ok":

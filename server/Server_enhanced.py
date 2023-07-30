@@ -451,6 +451,13 @@ def server():
                             email_index = connectionSocket.recv(2048)  # Recieve chosen index from client
                             email_index = decrypt_message(email_index, sym_key)
 
+                            if not os.path.exists(username):
+                                missing_folder_response = "Your inbox is currently empty."
+                                connectionSocket.send(encrypt_message(missing_folder_response,sym_key))
+                                continue
+                            else:
+                                connectionSocket.send(encrypt_message("Ok",sym_key))
+                            
                             while True:
                                 if int(email_index) < 0 or int(email_index) > len(email_list):
                                     connectionSocket.send(encrypt_message("Index out of range. Please enter another index: ", sym_key))
