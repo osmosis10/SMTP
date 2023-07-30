@@ -341,22 +341,21 @@ def server():
                             folder = username # folder for client
                             filelist = os.listdir(folder) # list of files in folder
 
+
                             # The inbox is only generated if there is a least one email
                             # in the client's folder
                             if len(filelist) > 0:
                                 list_dates, email_names, num_files, inbox_dict = inbox_data(filelist, folder) # function returns relevant lists, a counter and                                                                           # inbox data dictionary
                                 sorted_dates = bubblesort(list_dates) # sorts list of dates
-
                                 num_files = len(sorted_dates)-1  # number of files to be compared
-                            
                                 email_list.clear() #Clears email_list each time client calls "2" or "3"
-                            
+
                                 # create_inbox() creates the returns the inbox string and updates the email_list
                                 inbox, email_list = create_inbox(inbox, inbox_dict, email_list, email_names, num_files, sorted_dates, folder)
                             
                                 # if the client entered a 2 the inbox is sent to the client, 
                                 # otherwise only the inbox dictionary and email_list is created/updated
-                            
+          
                             inbox_length = str(len(inbox)) #obtain size
                             connectionSocket.send(encrypt_message(inbox_length, sym_key)) # send size
                             ok_recv = connectionSocket.recv(2048) # recieve OK
