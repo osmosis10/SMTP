@@ -67,6 +67,7 @@ def encrypt_message(message, sym_key):
 
 def encrypt_message_ctr(message,sym_key, nonce):
     ctr = Counter.new(64, prefix=nonce, little_endian=True, allow_wraparound=True)
+    print(ctr, "CTR: Client Side")
     binary_message = str(message).encode('utf-8')
     padded_message = pad(binary_message, 16)
     cipher_message = AES.new(sym_key, AES.MODE_CTR, counter=ctr)
@@ -249,6 +250,7 @@ def client():
                             f'\033[1mContent:\033[0m {content}\n'
                             
                     nonce = get_random_bytes(8)
+                    print(nonce, "Nonce: Client Side")
                     payload = {
                         'message': email, 
                         'seq': sequence_number,
@@ -257,7 +259,7 @@ def client():
                     json_data = json.dumps(payload)
                     
                     mac = generate_HMAC(json_data, sym_key)
-                    
+                    print(mac, "MAC: Client Side")
                     payload['mac'] = mac.hexdigest()
                     
                     json_mac_data = json.dumps(payload)
@@ -283,15 +285,16 @@ def client():
                         print(nonce_response)
                         continue
                     # clientSocket.send(encrypt_message(email, sym_key))
-                    
+                    clientSocket.send(encrypt_message("Ok", sym_key))
                     mac_response = decrypt_message(clientSocket.recv(2048), sym_key)
                     if mac_response != "Ok":
                         print(mac_response)
                         continue
-                    
+                    clientSocket.send(encrypt_message("Ok", sym_key))
                     valid_response = decrypt_message(clientSocket.recv(2048), sym_key)
                     if valid_response != "Ok":
                         print(valid_response)
+                    clientSocket.send(encrypt_message("Ok", sym_key))
                     sequence_number += increment
                 if command == "2" or command == "3" and inbox_printed == 0:
                     # Recieving size

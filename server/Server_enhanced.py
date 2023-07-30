@@ -343,9 +343,10 @@ def server():
                                 connectionSocket.send(encrypt_message(nonce_response, sym_key))
                                 continue
                             else:
-                                connectionSocket.send(encrypt_message("OK", sym_key))
+                                connectionSocket.send(encrypt_message("Ok", sym_key))
                                 nonce_set.add(nonce)
-                                
+                            
+                            ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             email_data = json_data[8:]
                             email_data = decrypt_message_ctr(email_data, sym_key, nonce)
                             email_data = json.loads(email_data)
@@ -361,6 +362,7 @@ def server():
                             else:
                                 connectionSocket.send(encrypt_message("Ok",sym_key))
                                 
+                            ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             #print(validate_mac(email_data, mac, sym_key))
                             
                             email_data = json.loads(email_data)
@@ -397,7 +399,8 @@ def server():
                                 connectionSocket.send(encrypt_message(invalid_clients, sym_key))
                             else:
                                 connectionSocket.send(encrypt_message("Ok", sym_key))
-                            
+                                
+                            ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             dest = ";".join(valid_clients)
 
                             print(f"An email from {client} is sent to {dest} has content length of {length}")
