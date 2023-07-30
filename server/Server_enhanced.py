@@ -290,7 +290,6 @@ def server():
         try:
             # Server accepts client connection
             connectionSocket, addr = serverSocket.accept()
-            print(addr, '   ', connectionSocket)
             pid = os.fork()
             accepted_clients = ["client1","client2","client3","client4","client5"]
             # If it is a client process
