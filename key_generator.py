@@ -1,6 +1,7 @@
 # This is the RSA key generator functions for the SMTP program
 # Conlan Myers - 3110785
-
+# Moses Lemma - 3108513
+# Rajiv Naidu - 3060912
 from Crypto.PublicKey import RSA
 
 # Use this to generate RSA public and private keys

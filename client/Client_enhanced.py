@@ -1,6 +1,7 @@
 # This is the enhanced with additional security client side of the SMTP program
 # Conlan Myers - 3110785
-# ADD other names here
+# Moses Lemma - 3108513
+# Rajiv Naidu - 3060912
 import socket
 import sys
 import os
@@ -13,7 +14,7 @@ from Crypto.Util.Padding import pad, unpad
 from Crypto.Hash import SHA256, HMAC
 from Crypto.Signature import pss
 from Crypto.Util import Counter
-import time
+
 
 # Use this to generate a sym_key of size 32(256bits)
 # Can change size to change the size of the key
