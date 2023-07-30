@@ -153,8 +153,13 @@ def client():
                         print("Invalid input. Please enter at least one destination.")
                         dest = input("Enter destinations (separated by ;): ")
                     title = input("Enter title: ")
-                    while title.strip() == ""or "/" in title or "\\" in title:
-                        print("Invalid input. Do not leave empty.")
+                    while title.strip() == "" or "/" in title or "\\" in title or len(title) > 100:
+                        if title.strip() == "":
+                            print("Invalid input. Do not leave empty.")
+                        elif "/" in title or "\\" in title:
+                            print("Invalid input: '/' or '\\")
+                        elif len(title) > 100:
+                            print("Invalid input. Max of 100 characters.")
                         title = input("Enter title: ")
                     load_file = input("Would you like to load contents from a file?(Y/N) " )
                     while load_file.upper() not in ("N", "Y"):
@@ -239,6 +244,12 @@ def client():
                         index = input("Enter the email index you wish to view: ")
                     clientSocket.send(encrypt_message(index, sym_key))
                     
+                    empty_folder_reponse = decrypt_message(clientSocket.recv(2048), sym_key)
+                    if empty_folder_reponse != "Ok":
+                        print(empty_folder_reponse)
+                        clientSocket.send(encrypt_message("Ok", sym_key))
+                        continue
+                    
                     index_response = clientSocket.recv(2048)
                     index_response = decrypt_message(index_response, sym_key)
                     while index_response != "Ok":
@@ -263,6 +274,7 @@ def client():
                         email += data
                     
                     print(decrypt_message(email, sym_key))
+                    clientSocket.send(encrypt_message("Ok", sym_key))
                     
                     
 

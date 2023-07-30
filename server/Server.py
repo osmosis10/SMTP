@@ -72,6 +72,10 @@ def splice_word(string, target):
     
     return string[middle2+1:end].strip()
 
+def empty_folder_check(path):
+    files = glob.glob(path + "/*")
+    return not bool(files)
+
 def initial_connection_protocol(connectionSocket):
     # This is the server client communication protocol for when the initial connection
 
@@ -267,6 +271,7 @@ def server():
                         command = unpad(sym_cipher.decrypt(encrypted), 16).decode("ascii")
                         # Sending email
                         if command == "1":
+                            current_path = os.getcwd()
                             message = "Send this email\n"
                             connectionSocket.send(encrypt_message(message, sym_key))
                             
@@ -289,7 +294,8 @@ def server():
                             dest = splice_word(email, "To")
                             dest_list = dest.split(";")
                             length = splice_word(email, "Length")
-                            
+                            title = splice_word(email, "Title")
+                  
                             invalid_clients = []
                             valid_clients = []
                             for item in dest_list:
@@ -308,9 +314,8 @@ def server():
                             dest = ";".join(valid_clients)
                             
                             print(f"An email from {client} is sent to {dest} has content length of {length}")
-                            title = splice_word(email, "Title")
                             #file_path = os.path.join(current_path, f'{dest_list[i]}', f'{client}_{title}.txt')    
-                            current_path = os.getcwd()
+                            
                             index = 1
                             for i in range(len(valid_clients)):
                                 new_path = os.path.join(current_path, f'{valid_clients[i]}')    
@@ -323,6 +328,8 @@ def server():
                                     while os.path.exists(os.path.join(new_path, f'{client}_{title}({index}).txt')):
                                         index += 1
                                     with open(os.path.join(new_path, f'{client}_{title}({str(index)}).txt'), "w") as file:
+                                        new_title = title + f"({str(index)})"
+                                        email = email.replace(f"\033[1m\033[1mTitle:\033[0m {title}\n", f"\033[1m\033[1mTitle:\033[0m {new_title}\n")
                                         file.write(email)
                                     break
                                 else:
@@ -369,6 +376,14 @@ def server():
                             email_index = connectionSocket.recv(2048) #Recieve chosen index from client
                             email_index = decrypt_message(email_index, sym_key) 
                             
+                            if empty_folder_check(username):
+                                empty_folder_reponse = "Your inbox is currently empty.\n"
+                                connectionSocket.send(encrypt_message(empty_folder_reponse,sym_key))
+                                ok = decrypt_message(connectionSocket.recv(2048), sym_key)
+                                continue
+                            else:
+                                connectionSocket.send(encrypt_message("Ok",sym_key))
+                            
                             while True:
                                 if int(email_index) < 0 or int(email_index) > len(email_list):
                                     connectionSocket.send(encrypt_message("Index out of range. Please enter another index: ", sym_key))
@@ -403,6 +418,8 @@ def server():
                                 chunk = encrypted_chosen_email[offset:offset + chunk_size] #Takes characters from the offset to the offset and chunk_size
                                 connectionSocket.send(chunk)
                                 offset += chunk_size #Adds the chunk_size to offset
+                                
+                            ok = decrypt_message(connectionSocket.recv(2048), sym_key)
 
 
                 connectionSocket.close()
