@@ -280,7 +280,7 @@ def create_inbox(inbox, inbox_dict, email_list, email_names, num_files, sorted_d
 
 def server():
     # Server port
-    serverPort = 12000
+    serverPort = 13000
 
     # Create server socket that uses IPv4 and TCP protocols
     try:
@@ -289,7 +289,7 @@ def server():
         print('Error in server socket creation:', e)
         sys.exit(1)
 
-    # Associate 12000 port number to the server socket
+    # Associate 13000 port number to the server socket
     try:
         serverSocket.bind(('', serverPort))
     except socket.error as e:

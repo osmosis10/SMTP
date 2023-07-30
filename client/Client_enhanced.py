@@ -185,7 +185,7 @@ def get_random_next():
 def client():
     # Server Information
     serverName = input("Enter the server IP or name: ")
-    serverPort = 12000
+    serverPort = 13000
 
     # Create client socket that useing IPv4 and TCP protocols
     try:
