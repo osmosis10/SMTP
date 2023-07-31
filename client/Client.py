@@ -1,11 +1,10 @@
 # This is the client side of the SMTP program
 # Conlan Myers - 3110785
-# ADD other names here
-#
+# Moses Lemma - 3108513
+# Rajiv Naidu - 3060912
 import socket
 import sys
 import os
-import json
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes

@@ -1,7 +1,7 @@
 # This is the enhanced with additional security server side of the SMTP program
 # Conlan Myers - 3110785
-# ADD other names here
-#
+# Moses Lemma - 3108513
+# Rajiv Naidu - 3060912
 import json
 import socket
 import sys, glob, datetime
@@ -151,7 +151,7 @@ def initial_connection_protocol(connectionSocket):
     except ValueError:
         connectionSocket.send("Incorrect Digital Signature".encode("ascii"))
         print(f"The received Client Digital Signature from: {username} is invalid (Connection Terminated)")
-        return False, None
+        return False, None, username
 
     # Loads the user password json
     f = open("user_pass.json", "r")
@@ -183,7 +183,7 @@ def initial_connection_protocol(connectionSocket):
         # Sends denied connection in the clear
         connectionSocket.send("Invalid Username or Password".encode('ascii'))
         print(f"The received Client Information: {username} is invalid (Connection Terminated)")
-        return False, None
+        return False, None, username
 
 
 def substring(string, delimiter):
@@ -286,7 +286,7 @@ def server():
         print('Error in server socket creation:', e)
         sys.exit(1)
 
-    # Associate 12000 port number to the server socket
+    # Associate 13000 port number to the server socket
     try:
         serverSocket.bind(('', serverPort))
     except socket.error as e:
@@ -551,7 +551,10 @@ def server():
                                 connectionSocket.send(chunk)
                                 offset += chunk_size  # Adds the chunk_size to offset
                             ok = decrypt_message(connectionSocket.recv(2048), sym_key)
-
+                else:
+                    # This prevents a duplicate print to the server
+                    connectionSocket.close()
+                    return
                 connectionSocket.close()
                 print(f"Terminating connection with {username}")
 
