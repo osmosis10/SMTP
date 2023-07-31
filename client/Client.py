@@ -145,23 +145,31 @@ def client():
                 encrypted = sym_cipher.encrypt(pad(command.encode('ascii'), 16))
                 clientSocket.send(encrypted)
 
+                #Protocol to send emails to other clients
                 if command == "1":             
                     message = clientSocket.recv(2048)
-                    print(decrypt_message(message,sym_key))
+                    decrypt_message(message,sym_key)
+                    #Clients that will receive the email
                     dest = input("Enter destinations (separated by ;): ")
+                    #Check if empty
                     while dest.strip() == "":
                         print("Invalid input. Please enter at least one destination.")
                         dest = input("Enter destinations (separated by ;): ")
+                    #Title of the email
                     title = input("Enter title: ")
+                    #Check for some problematic characters and empty input
                     while title.strip() == "" or "/" in title or "\\" in title or len(title) > 100:
                         if title.strip() == "":
                             print("Invalid input. Do not leave empty.")
                         elif "/" in title or "\\" in title:
                             print("Invalid input: '/' or '\\")
+                        #Title can be a max of 100 characters
                         elif len(title) > 100:
                             print("Invalid input. Max of 100 characters.")
                         title = input("Enter title: ")
+                    #Client may choose to upload from a file or not
                     load_file = input("Would you like to load contents from a file?(Y/N) " )
+                    #Check for case sensitive inpput and empty input
                     while load_file.upper() not in ("N", "Y"):
                         if load_file.strip() == "":
                             print("Invalid input. Do not leave empty.")
@@ -169,21 +177,33 @@ def client():
                         else:
                             print("Invalid input.")
                             load_file = input("Would you like to load contents from a file?(Y/N) ")
+                    #Check for if clients wants to upload a file
                     if (load_file.upper() == "Y"):
                         content = input("Enter filename: ")
+                        if not (os.path.exists(content)):
+                            print("File does not exist")
+                            clientSocket.send(encrypt_message("Ok", sym_key))
+                            continue
                         length = file_length(content)
+                        #Max content length is 1,000,000 characters
                         if (length > 1000000):
                             print("Message length too long (max 1,000,000 characters)")
-                            while True:
+                            num_tries = 0
+                            while num_tries != 3:
                                 content = input("Enter filename: ")
                                 length = file_length(content)
                                 if (length <= 1000000):
                                     break
                                 else:
-                                    print("File size is too large (>1mB)")
+                                    print("Message length too long (max 1,000,000 characters)")
+                                num_tries += 1
+                        if (num_tries == 3):
+                            print("Max number of tries reached\n\n")
+                            clientSocket.send(encrypt_message("Ok", sym_key))
+                            continue
                         with open(content, 'r') as file:
                             content = file.read()
-                            #print(content)
+                    #Check for if client wants to input email themselves
                     elif (load_file.upper() == "N"): #We don't have a limit check when the user inputs text, as we assume they will not go paste the terminal limit of 4095 characters
                         content = input("Enter message contents: ")
                         length = len(content) 
@@ -197,6 +217,8 @@ def client():
                     print("The message is sent to the server.")
                     encrypted_email = encrypt_message(email,sym_key)
                     
+                    #Send the length of our email over to the server
+                    #used to receive correct number of bytes
                     clientSocket.send(encrypt_message((str(len(encrypted_email))), sym_key))
                     ok = clientSocket.recv(2048)
                     ok = decrypt_message(ok, sym_key)
@@ -208,12 +230,13 @@ def client():
                         chunk = encrypted_email[offset:offset + chunk_size] #Takes characters from the offset to the offset and chunk_size
                         clientSocket.send(chunk)
                         offset += chunk_size #Adds the chunk_size to offset
-                    
-                    #clientSocket.send(encrypt_message(email, sym_key))
-                    
+                        
+                    #Valid response can either be "Ok" or a list of invalid clients
+                    #Used in case the client submits destination clients that are not valid
                     valid_response = decrypt_message(clientSocket.recv(2048), sym_key)
                     if valid_response != "Ok":
                         print(valid_response)
+                    clientSocket.send(encrypt_message("Ok", sym_key))
                 if command == "2" or command == "3" and inbox_printed == 0:
                     # Recieving size
                     size = clientSocket.recv(2048)
@@ -249,7 +272,7 @@ def client():
                         print(empty_folder_reponse)
                         clientSocket.send(encrypt_message("Ok", sym_key))
                         continue
-                    
+                    clientSocket.send(encrypt_message("Ok", sym_key))
                     index_response = clientSocket.recv(2048)
                     index_response = decrypt_message(index_response, sym_key)
                     while index_response != "Ok":
@@ -261,7 +284,7 @@ def client():
                         index_response = decrypt_message(index_response, sym_key)
                         if index_response == "Ok":
                             break
-                    
+                    clientSocket.send(encrypt_message("Ok", sym_key))
                     email_length = clientSocket.recv(2048) #Length of server side encrypted email
                     email_length = decrypt_message(email_length, sym_key)
                     
@@ -290,7 +313,7 @@ def client():
 #----------
 client()
 
-#file_generator("testfile4.txt", 500000)
+#file_generator("testfile4.txt", 1000500)
 
 
 

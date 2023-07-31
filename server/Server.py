@@ -275,7 +275,10 @@ def server():
                             connectionSocket.send(encrypt_message(message, sym_key))
                             
                             email_length = connectionSocket.recv(2048)
-                            email_length = int(decrypt_message(email_length, sym_key))
+                            email_length = decrypt_message(email_length, sym_key)
+                            if (email_length == "Ok"):
+                                continue
+                            email_length = int(email_length)
                             connectionSocket.send(encrypt_message("Ok", sym_key))
                                     
                             email_data = b''
@@ -286,15 +289,18 @@ def server():
                             email = decrypt_message(email_data, sym_key)
  
                             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-  
+                            #Add the current time to our email
                             email = email.replace("\033[1mTime and Date:\033[0m", f"\033[1mTime and Date:\033[0m {current_time}")
  
                             client = splice_word(email, "From")
                             dest = splice_word(email, "To")
+                            #Split destination clients up by the separator ;
                             dest_list = dest.split(";")
                             length = splice_word(email, "Length")
                             title = splice_word(email, "Title")
-                  
+
+                            #We separate the valid and invalid clients into lists
+                            #Valid clients are client1,client2,client3,client4 and client5
                             invalid_clients = []
                             valid_clients = []
                             for item in dest_list:
@@ -304,20 +310,24 @@ def server():
                                 else:
                                     valid_clients.append(item)
                             if len(invalid_clients) != 0:
+                                #For formatting we join the list into a string separated by a ,
                                 delimited_string = ", ".join(invalid_clients)
                                 invalid_clients = "Email was not sent to " + delimited_string + ". Invalid recipient(s)"
                                 connectionSocket.send(encrypt_message(invalid_clients, sym_key))
                             else:
                                 connectionSocket.send(encrypt_message("Ok", sym_key))
+                            ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             
+                            #Make a new dest variable filled only with valid clients
                             dest = ";".join(valid_clients)
                             
                             print(f"An email from {client} is sent to {dest} has content length of {length}")
-                            #file_path = os.path.join(current_path, f'{dest_list[i]}', f'{client}_{title}.txt')    
                             
                             index = 1
+                            #We go through the list of valid clients
                             for i in range(len(valid_clients)):
-                                new_path = os.path.join(current_path, f'{valid_clients[i]}')    
+                                new_path = os.path.join(current_path, f'{valid_clients[i]}')
+                                #Make a new directory if it doesnt exist, for the client
                                 if not os.path.exists(new_path):
                                     os.makedirs(new_path)
                                 client_file_path = os.path.join(new_path, f'{client}_{title}.txt')
@@ -326,6 +336,8 @@ def server():
                                 if os.path.exists(client_file_path):
                                     while os.path.exists(os.path.join(new_path, f'{client}_{title}({index}).txt')):
                                         index += 1
+                                    #If there are multiple of the same title, we just add an index that increments
+                                    #For each title that is found that is the same
                                     with open(os.path.join(new_path, f'{client}_{title}({str(index)}).txt'), "w") as file:
                                         new_title = title + f"({str(index)})"
                                         email = email.replace(f"\033[1m\033[1mTitle:\033[0m {title}\n", f"\033[1m\033[1mTitle:\033[0m {new_title}\n")
@@ -382,7 +394,9 @@ def server():
                                 continue
                             else:
                                 connectionSocket.send(encrypt_message("Ok",sym_key))
+                            ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             
+                            # Checks to see if index is within the len of the email_list and 0
                             while True:
                                 if int(email_index) <= 0 or int(email_index) > len(email_list):
                                     connectionSocket.send(encrypt_message("Index out of range. Please enter another index: ", sym_key))
@@ -391,11 +405,12 @@ def server():
                                 else:
                                     connectionSocket.send(encrypt_message("Ok", sym_key))
                                     break
+                            ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             
                           
                             temp = email_list[int(email_index)-1] #find chosen email title from email_list based on client chosen index-1
                             email_source =  temp[:temp.find(":")]
-                            email_title = temp[temp.find(":")+1:]
+                            email_title = temp[temp.find(":") + 1:]
                             
                             client_file_path = os.path.join(os.getcwd(), username, f"{email_source}_{email_title}.txt") #Path to client chosen file
                             

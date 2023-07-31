@@ -13,7 +13,6 @@ from Crypto.Util.Padding import pad, unpad
 from Crypto.Hash import SHA256, HMAC
 from Crypto.Signature import pss
 from Crypto.Util import Counter
-import time
 
 # Use this to generate a sym_key of size 32(256bits)
 # Can change size to change the size of the key
@@ -184,7 +183,7 @@ def get_random_next():
 def client():
     # Server Information
     serverName = input("Enter the server IP or name: ")
-    serverPort = 12000
+    serverPort = 13000
 
     # Create client socket that useing IPv4 and TCP protocols
     try:
@@ -219,19 +218,32 @@ def client():
                 # Sends command to the server
                 encrypted = sym_cipher.encrypt(pad(command.encode('ascii'), 16))
                 clientSocket.send(encrypted)
-
+                
+                #Protocol to send emails to other clients
                 if command == "1":
                     message = clientSocket.recv(2048)
-                    print(decrypt_message(message, sym_key))
+                    decrypt_message(message, sym_key)
+                    #Clients that will receive the email
                     dest = input("Enter destinations (separated by ;): ")
+                    #Check if empty
                     while dest.strip() == "":
                         print("Invalid input. Please enter at least one destination.")
                         dest = input("Enter destinations (separated by ;): ")
+                    #Title of the email
                     title = input("Enter title: ")
+                    #Check for some problematic characters and empty input
                     while title.strip() == "" or "/" in title or "\\" in title:
-                        print("Invalid input or Empty input. Do not leave empty.")
+                        if title.strip() == "":
+                            print("Invalid input. Do not leave empty.")
+                        elif "/" in title or "\\" in title:
+                            print("Invalid input: '/' or '\\")
+                        #Title can be a max of 100 characters
+                        elif len(title) > 100:
+                            print("Invalid input. Max of 100 characters.")
                         title = input("Enter title: ")
+                    #Client may choose to upload from a file or not
                     load_file = input("Would you like to load contents from a file?(Y/N) ")
+                    #Check for case sensitive inpput and empty input
                     while load_file.upper() not in ("N", "Y"):
                         if load_file.strip() == "":
                             print("Invalid input. Do not leave empty.")
@@ -239,21 +251,33 @@ def client():
                         else:
                             print("Invalid input.")
                             load_file = input("Would you like to load contents from a file?(Y/N) ")
+                    #Check for if clients wants to upload a file
                     if (load_file.upper() == "Y"):
                         content = input("Enter filename: ")
+                        if not (os.path.exists(content)):
+                            print("File does not exist")
+                            clientSocket.send(encrypt_message("Ok", sym_key))
+                            continue
                         length = file_length(content)
+                        #Max content length is 1,000,000 characters
                         if (length > 1000000):
                             print("Message length too long (max 1,000,000 characters)")
-                            while True:
+                            num_tries = 0
+                            while num_tries != 2:
                                 content = input("Enter filename: ")
                                 length = file_length(content)
                                 if (length <= 1000000):
                                     break
                                 else:
-                                    print("File size is too large (>1mB)")
+                                    print("Message length too long (max 1,000,000 characters)")
+                                num_tries += 1
+                        if (num_tries == 3):
+                            print("\nMax number of tries reached\n")
+                            clientSocket.send(encrypt_message("Ok", sym_key))
+                            continue
                         with open(content, 'r') as file:
                             content = file.read()
-                            # print(content)
+                    #Check for if client wants to input email themselves
                     elif (load_file.upper() == "N"):  # We don't have a limit check when the user inputs text, as we assume they will not go paste the terminal limit of 4095 characters
                         content = input("Enter message contents: ")
                         length = len(content)
@@ -263,17 +287,20 @@ def client():
                             f'\033[1m\033[1mTitle:\033[0m {title}\n' \
                             f'\033[1mContent Length:\033[0m {length}\n' \
                             f'\033[1mContent:\033[0m {content}\n'
-                            
+                    
+                    #Random Nonce generated everytime a client sends an email
                     nonce = get_random_bytes(8)
                     print(nonce.hex(), "Nonce: Client Side")
 
+                    #Timestamp of email creation
                     current = datetime.now()
                     timestamp = int(current.timestamp())
                     payload = {
                         'message': email,
                         'timestamp': timestamp
                     }
-
+                    
+                    #We serialize the payload so we can use it to generate a MAC
                     json_data = json.dumps(payload)
                     
                     #attacker_sym_key = get_random_bytes(32)
@@ -282,12 +309,16 @@ def client():
                     print(mac.hexdigest(), "MAC: Client Side")
                     payload['mac'] = mac.hexdigest()
                     
+                    #We serialize the payload again, as we added the MAC to it
                     json_mac_data = json.dumps(payload)
-
-                    
+                      
                     print("The message is sent to the server.")
+                    #We pass our new data, shared secret(sym_key) and the nonce into the 
+                    #Counter mode encrpytion function
                     encrypted_email = encrypt_message_ctr(json_mac_data, sym_key, nonce)
 
+                    #Send the length of our email over to the server
+                    #used to receive correct number of bytes
                     clientSocket.send(encrypt_message((str(len(encrypted_email))), sym_key))
                     ok = clientSocket.recv(2048)
                     ok = decrypt_message(ok, sym_key)
@@ -300,24 +331,32 @@ def client():
                         clientSocket.send(chunk)
                         offset += chunk_size  # Adds the chunk_size to offset
 
+                    #Nonce Response can either be "Ok" or "Repeated Nonce. Rejecting Message."
+                    #If its the latter than we print out the response and go back to the menu
                     nonce_response = decrypt_message(clientSocket.recv(2048), sym_key)
                     if nonce_response != "Ok":
                         print(nonce_response)
                         continue
                     clientSocket.send(encrypt_message("Ok", sym_key))
                     
+                    #Mac Response can either be "Ok" or "Invalid MAC: Rejcting Message."
+                    #If its the latter than we print out the response and go back to the menu
                     mac_response = decrypt_message(clientSocket.recv(2048), sym_key)
                     if mac_response != "Ok":
                         print(mac_response)
                         continue
                     clientSocket.send(encrypt_message("Ok", sym_key))
                     
+                    #Timestamp Response can either be "Ok" or "Timestamp outdated. Please resubmit your request."
+                    #If its the latter than we print out the response and go back to the menu
                     timestamp_response = decrypt_message(clientSocket.recv(2048), sym_key)
                     if timestamp_response != "Ok":
                         print(timestamp_response)
                         continue
                     clientSocket.send(encrypt_message("Ok", sym_key))
                     
+                    #Valid response can either be "Ok" or a list of invalid clients
+                    #Used in case the client submits destination clients that are not valid
                     valid_response = decrypt_message(clientSocket.recv(2048), sym_key)
                     if valid_response != "Ok":
                         print(valid_response)

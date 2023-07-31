@@ -111,11 +111,8 @@ def splice_word(string, target):
 
 def valid_timestamp(timestamp, valid_time=5):
     current = datetime.now()
-    print(current)
     timestamp_datetime = datetime.fromtimestamp(timestamp)
-    print(timestamp_datetime)
     diff = current - timestamp_datetime
-    print(diff)
     if diff <= timedelta(seconds=valid_time):
         return True
     else:
@@ -280,7 +277,7 @@ def create_inbox(inbox, inbox_dict, email_list, email_names, num_files, sorted_d
 
 def server():
     # Server port
-    serverPort = 12000
+    serverPort = 13000
 
     # Create server socket that uses IPv4 and TCP protocols
     try:
@@ -341,11 +338,15 @@ def server():
 
                         # Sending email
                         if command == "1":
+                            current_path = os.getcwd()
                             message = "Send this email\n"
                             connectionSocket.send(encrypt_message(message, sym_key))
 
                             email_length = connectionSocket.recv(2048)
-                            email_length = int(decrypt_message(email_length, sym_key))
+                            email_length = decrypt_message(email_length, sym_key)
+                            if (email_length == "Ok"):
+                                continue
+                            email_length = int(email_length)
                             connectionSocket.send(encrypt_message("Ok", sym_key))
 
                             json_data = b''
@@ -353,25 +354,39 @@ def server():
                             while len(json_data) < email_length:
                                 data = connectionSocket.recv(4096)
                                 json_data += data
+                            
+                            #Nonce was prepending during client encryption so we split it from the data
                             nonce = json_data[:8]
                             print(nonce.hex(), "Nonce: Server Side")
+                            
+                            #Check to see if nonce is in a set, if it is than it might be a possible attack
+                            #Nonces should be unique
                             if nonce in nonce_set:
                                 nonce_response = "Repeated Nonce. Rejecting Message."
                                 connectionSocket.send(encrypt_message(nonce_response, sym_key))
                                 continue
                             else:
                                 connectionSocket.send(encrypt_message("Ok", sym_key))
+                                #Add nonce to set if not in set
                                 nonce_set.add(nonce)
                             ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             
+                            #Save the rest of the encrypted message data in email_data
                             email_data = json_data[8:]
+                            #Decrypt with CTR mode
                             email_data = decrypt_message_ctr(email_data, sym_key, nonce)
+                            #Use loads to get back into key accessible format
                             email_data = json.loads(email_data)
                             mac = email_data['mac']
+                            #We delete the MAC from the payload so we can generate another MAC
+                            #In the same conditions as the client side
+                            #This will help us validate the MAC
                             if 'mac' in email_data:
                                 del email_data['mac']
+                            #Re-Serialize the data so we can use it in validating the mac
                             email_data = json.dumps(email_data)
                             
+                            #Validate mac compares the client mac to our newly generated mac
                             if validate_mac(email_data, mac, sym_key) == "Invalid Message":
                                 mac_response = "Invalid MAC: Rejcting Message."
                                 connectionSocket.send(encrypt_message(mac_response, sym_key))
@@ -380,14 +395,22 @@ def server():
                                 connectionSocket.send(encrypt_message("Ok",sym_key))    
                             ok = decrypt_message(connectionSocket.recv(2048), sym_key)
 
+                            #Use loads to get back into key accessible format
                             email_data = json.loads(email_data)
                             email = email_data['message']
                             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+                            #Add the current time to our email
                             email = email.replace("\033[1mTime and Date:\033[0m",f"\033[1mTime and Date:\033[0m {current_time}")
+                            #Splice_word find the relevant information and saves it into a relvant variable
+                            
                             client = splice_word(email, "From")
                             dest = splice_word(email, "To")
+                            #Split destination clients up by the separator ;
                             dest_list = dest.split(";")
                             length = splice_word(email, "Length")
+                            title = splice_word(email, "Title")
+                            #Valid timestamp simply compares current time with the timestamp, if the difference is more
+                            #Than the timedelta(valid_time=x) than it is invalid and outdated
                             if valid_timestamp(email_data['timestamp'], 5) == False:
                                 timestamp_response = "Timestamp outdated. Please resubmit your request."
                                 connectionSocket.send(encrypt_message(timestamp_response, sym_key))
@@ -396,6 +419,8 @@ def server():
                                 connectionSocket.send(encrypt_message("Ok",sym_key))    
                             ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             
+                            #We separate the valid and invalid clients into lists
+                            #Valid clients are client1,client2,client3,client4 and client5
                             invalid_clients = []
                             valid_clients = []
                             for item in dest_list:
@@ -404,6 +429,7 @@ def server():
                                 else:
                                     valid_clients.append(item)
                             if len(invalid_clients) != 0:
+                                #For formatting we join the list into a string separated by a ,
                                 delimited_string = ", ".join(invalid_clients)
                                 invalid_clients = "Email was not sent to " + delimited_string + ". Invalid recipient(s)"
                                 connectionSocket.send(encrypt_message(invalid_clients, sym_key))
@@ -411,15 +437,16 @@ def server():
                                 connectionSocket.send(encrypt_message("Ok", sym_key))
                             ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             
+                            #Make a new dest variable filled only with valid clients
                             dest = ";".join(valid_clients)
 
                             print(f"An email from {client} is sent to {dest} has content length of {length}")
-                            title = splice_word(email, "Title")
-                            # file_path = os.path.join(current_path, f'{dest_list[i]}', f'{client}_{title}.txt')
-                            current_path = os.getcwd()
+    
                             index = 1
+                            #We go through the list of valid clients
                             for i in range(len(valid_clients)):
                                 new_path = os.path.join(current_path, f'{valid_clients[i]}')
+                                #Make a new directory if it doesnt exist, for the client
                                 if not os.path.exists(new_path):
                                     os.makedirs(new_path)
                                 client_file_path = os.path.join(new_path, f'{client}_{title}.txt')
@@ -428,8 +455,11 @@ def server():
                                 if os.path.exists(client_file_path):
                                     while os.path.exists(os.path.join(new_path, f'{client}_{title}({index}).txt')):
                                         index += 1
-                                    with open(os.path.join(new_path, f'{client}_{title}({str(index)}).txt'),
-                                              "w") as file:
+                                    #If there are multiple of the same title, we just add an index that increments
+                                    #For each title that is found that is the same
+                                    with open(os.path.join(new_path, f'{client}_{title}({str(index)}).txt'),"w") as file:
+                                        new_title = title + f"({str(index)})"
+                                        email = email.replace(f"\033[1m\033[1mTitle:\033[0m {title}\n", f"\033[1m\033[1mTitle:\033[0m {new_title}\n")
                                         file.write(email)
                                     break
                                 else:
@@ -475,7 +505,7 @@ def server():
 
                             email_index = connectionSocket.recv(2048)  # Recieve chosen index from client
                             email_index = decrypt_message(email_index, sym_key)
-
+                            
                             if empty_folder_check(username):
                                 empty_folder_reponse = "Your inbox is currently empty.\n"
                                 connectionSocket.send(encrypt_message(empty_folder_reponse,sym_key))
@@ -485,6 +515,7 @@ def server():
                                 connectionSocket.send(encrypt_message("Ok",sym_key))
                             ok = decrypt_message(connectionSocket.recv(2048), sym_key)
                             
+                            # Checks to see if index is within the len of the email_list and 0
                             while True:
                                 if int(email_index) <= 0 or int(email_index) > len(email_list):
                                     connectionSocket.send(encrypt_message("Index out of range. Please enter another index: ", sym_key))
